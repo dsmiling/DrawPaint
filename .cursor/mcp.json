@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "drawpaint": {
+      "command": "node",
+      "args": ["server/mcp.mjs"]
+    }
+  }
+}

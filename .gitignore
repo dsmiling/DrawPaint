@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+canvas/pages/*/assets/
+canvas/pages/*/snapshot.json
+canvas/selection.json
+canvas/pending-request.json
+canvas/pending-inserts.json
+!canvas/.gitkeep
