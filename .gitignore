@@ -8,3 +8,6 @@ canvas/selection.json
 canvas/pending-request.json
 canvas/pending-inserts.json
 !canvas/.gitkeep
+
+# Local secrets for git/gh helpers
+scripts/git-env.local.ps1
