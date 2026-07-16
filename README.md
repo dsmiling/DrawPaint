@@ -224,27 +224,6 @@ DrawPaint/
 - 生图本身依赖你当前 Cursor 可用的图片模型 / 工具；本仓库负责画布、待办链路与插回。
 - AI HTML、AI Slides 等 Cowart 进阶能力尚未作为默认交付（见设计文档路线图）。
 
-## 多端维护（Git）
-
-```bash
-# 新机器
-git clone https://github.com/dsmiling/DrawPaint.git
-cd DrawPaint
-npm install
-npm run dev
-
-# 已有仓库同步最新
-git pull
-npm install
-```
-
-推送前请确保已配置 GitHub 凭证。本仓库提供可选的本地 Token 弹窗脚本（不会提交密钥）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-git-env.ps1
-. .\scripts\set-git-env.ps1
-```
-
 ## 致谢
 
 - 画布能力基于 [tldraw/tldraw](https://github.com/tldraw/tldraw)。
