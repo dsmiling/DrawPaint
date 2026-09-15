@@ -53,7 +53,7 @@ function AnnotationEditToolbarButton({ imageShapeId }) {
         ? "已提交标注修改"
         : status === "error"
           ? "提交失败，请重试"
-          : ANNOTATION_EDIT_TOOL_LABEL;
+          : `${ANNOTATION_EDIT_TOOL_LABEL}：自动收集附近标注与箭头起点参考图`;
 
   return (
     <button

@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { createUiStudioHandler } from "./ui-studio/http.mjs";
 import {
   ROOT,
   assetsDir,
@@ -19,6 +20,7 @@ import {
 const PORT = Number(process.env.DRAWPAINT_API_PORT || 43218);
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 const CANVAS_DIR = initCanvasLayout(PROJECT_DIR);
+const handleUiStudio = createUiStudioHandler(CANVAS_DIR);
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
@@ -75,6 +77,8 @@ function saveDataUrlAsset(dataUrl, filenameHint = "image.png") {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
 
+  if (await handleUiStudio(req, res, url)) return;
+
   if (req.method === "OPTIONS") {
     return sendJson(res, 204, {});
   }
@@ -121,19 +125,53 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/agent-request") {
       const body = await readBody(req);
+      const resolveAssetPath = (relativePath, filePath) => {
+        if (filePath && path.isAbsolute(filePath) && fs.existsSync(filePath)) {
+          return filePath;
+        }
+        if (!relativePath || typeof relativePath !== "string") return filePath || null;
+        const abs = path.isAbsolute(relativePath)
+          ? relativePath
+          : path.resolve(PROJECT_DIR, relativePath);
+        return fs.existsSync(abs) ? abs : abs;
+      };
+
+      const elementRefs = (body.elementRefs || []).map((ref) => {
+        const absolutePath = resolveAssetPath(ref.relativePath, ref.filePath);
+        return {
+          ...ref,
+          filePath: absolutePath || ref.filePath || null,
+          absolutePath: absolutePath || null,
+        };
+      });
+      const referencePaths = (body.referencePaths || []).map((p) =>
+        typeof p === "string" ? resolveAssetPath(p, null) || p : p,
+      );
+      // Prefer absolute paths from materialized refs when client omitted them.
+      for (const ref of elementRefs) {
+        const p = ref.absolutePath || ref.filePath || ref.relativePath;
+        if (p && !referencePaths.includes(p)) referencePaths.push(p);
+      }
+
+      const screenshotRelativePath = body.screenshotRelativePath || null;
+      const screenshotAbsolutePath = screenshotRelativePath
+        ? resolveAssetPath(screenshotRelativePath, null)
+        : null;
+
       const request = {
         id: randomUUID(),
         schema: "drawpaint.agent-request.v1",
         type: body.type || "generate",
         prompt: body.prompt || "",
         selection: body.selection || null,
-        screenshotRelativePath: body.screenshotRelativePath || null,
+        screenshotRelativePath,
+        screenshotAbsolutePath,
         anchorShapeId: body.anchorShapeId || null,
         targetWidth: body.targetWidth ?? null,
         targetHeight: body.targetHeight ?? null,
         targetAspectRatio: body.targetAspectRatio || null,
-        referencePaths: body.referencePaths || [],
-        elementRefs: body.elementRefs || [],
+        referencePaths,
+        elementRefs,
         createdAt: new Date().toISOString(),
         status: "pending",
       };

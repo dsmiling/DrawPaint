@@ -11,3 +11,8 @@ canvas/pending-inserts.json
 
 # Local secrets for git/gh helpers
 scripts/git-env.local.ps1
+
+# Independent UI material workspace and local runtime caches
+canvas/ui-studio/
+.cache/
+tmp/

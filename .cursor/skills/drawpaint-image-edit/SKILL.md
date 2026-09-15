@@ -25,8 +25,10 @@ Cowart-parity skill for annotation-driven image revision on DrawPaint.
    - Arrows point at edit locations (**WHERE**).
    - Text on arrows (and nearby text) is the edit instruction.
 3. If the request / prompt lists **标注参考图 / 元素参考** (`elementRefs` / `referencePaths`):
-   - These images are **WHAT** to place at the pointed locations.
+   - These images are **WHAT** to place at the pointed locations (upload or canvas).
+   - Prefer `absolutePath` / `filePath` on each elementRef; fall back to `relativePath`.
    - Compose those elements into image 1 at the annotated spots; match image-1 style.
+   - Do **not** ignore refs just because the chat summary only shows the annotation screenshot.
 4. Generate a **clean** revised bitmap:
    - Apply the requested edits / placements.
    - Do **not** paint arrows, labels, selection chrome, or tool UI into the result.

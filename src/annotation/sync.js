@@ -1,4 +1,5 @@
 import { ANNOTATION_LABEL_POSITION } from "./constants.js";
+import { requestAnnotationDockOpen } from "./dockBridge.js";
 
 function isAnnotationArrowMeta(meta) {
   return meta?.drawpaintAnnotationArrow === true || meta?.cowartAnnotationArrow === true;
@@ -38,39 +39,70 @@ export function bindAnnotationShapeSync(editor) {
   );
 }
 
+function openAnnotationDockFor(editor, arrowId) {
+  try {
+    editor.setEditingShape(null);
+  } catch {
+    // ignore
+  }
+  try {
+    editor.setCurrentTool("select");
+  } catch {
+    // ignore
+  }
+  editor.select(arrowId);
+  requestAnnotationDockOpen(arrowId);
+}
+
 /**
- * After finishing annotation label edit: stay on select with the arrow selected
- * so the element-reference dock can appear. (Continuous draw: click 标注 again.)
+ * Annotation arrow labels are read-only on-canvas.
+ * Any attempt to edit the label (double-click / Enter) opens the dock instead.
  */
 export function bindAnnotationEditingToolLock(editor) {
-  return editor.store.listen(
+  const unsubEdit = editor.store.listen(
     ({ changes }) => {
       for (const entry of Object.values(changes.updated || {})) {
         const previous = Array.isArray(entry) ? entry[0] : null;
         const next = Array.isArray(entry) ? entry[1] : entry;
         if (previous?.typeName !== "instance_page_state") continue;
-        if (!previous.editingShapeId || next.editingShapeId) continue;
 
-        const arrowId = previous.editingShapeId;
-        const shape = editor.getShape(arrowId);
+        const editingId = next?.editingShapeId;
+        if (!editingId || previous.editingShapeId === editingId) continue;
+
+        const shape = editor.getShape(editingId);
         if (!isAnnotationArrowMeta(shape?.meta)) continue;
 
-        const resume = () => {
-          if (editor.getEditingShapeId()) return;
-          try {
-            editor.setCurrentTool("select");
-          } catch {
-            // ignore
-          }
-          editor.select(arrowId);
-        };
+        const run = () => openAnnotationDockFor(editor, editingId);
         if (editor.timers?.requestAnimationFrame) {
-          editor.timers.requestAnimationFrame(resume);
+          editor.timers.requestAnimationFrame(run);
         } else {
-          requestAnimationFrame(resume);
+          requestAnimationFrame(run);
         }
       }
     },
     { source: "all", scope: "session" },
   );
+
+  // Double-click arrow body (not only label) also opens the dock.
+  const onEvent = (info) => {
+    if (info?.type !== "click" || info?.name !== "double_click") return;
+    if (info.phase && info.phase !== "up" && info.phase !== "settle") return;
+
+    let shape = info.target === "shape" ? info.shape : null;
+    if (!shape && info.target === "selection") {
+      const only = editor.getSelectedShapes();
+      if (only.length === 1) shape = only[0];
+    }
+    if (!shape || shape.type !== "arrow" || !isAnnotationArrowMeta(shape.meta)) {
+      return;
+    }
+    openAnnotationDockFor(editor, shape.id);
+  };
+
+  editor.on?.("event", onEvent);
+
+  return () => {
+    unsubEdit?.();
+    editor.off?.("event", onEvent);
+  };
 }

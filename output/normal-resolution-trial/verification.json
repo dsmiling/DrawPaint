@@ -1,0 +1,40 @@
+{
+  "status": "ready",
+  "name": "高清底图与金饰试版 · 角色入口",
+  "reusedLayers": 8,
+  "oldShapeGeometryChanges": 0,
+  "layers": [
+    {
+      "name": "深蓝圆形底板",
+      "png": [
+        1318,
+        1318
+      ],
+      "alpha": true,
+      "asset": [
+        1318,
+        1318
+      ],
+      "placement": [
+        172,
+        174
+      ]
+    },
+    {
+      "name": "顶部菱形金饰",
+      "png": [
+        776,
+        1002
+      ],
+      "alpha": true,
+      "asset": [
+        776,
+        1002
+      ],
+      "placement": [
+        24,
+        31
+      ]
+    }
+  ]
+}

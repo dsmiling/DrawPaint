@@ -1,0 +1,5 @@
+numpy==2.2.6
+Pillow==11.3.0
+opencv-python==4.12.0.88
+rapidocr-onnxruntime==1.4.4
+segment-anything==1.0

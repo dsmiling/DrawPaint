@@ -5,6 +5,7 @@ export { prepareAnnotationEditRequest } from "./submit.js";
 export { setAnnotationEditHandler, requestAnnotationEdit } from "./bridge.js";
 export { DrawpaintImageToolbar } from "./ImageToolbar.jsx";
 export { AnnotationRefDock } from "./AnnotationRefDock.jsx";
+export { AnnotationRefPins } from "./AnnotationRefPins.jsx";
 export { isImageShape } from "./collect.js";
 export {
   isAnnotationArrowShape,

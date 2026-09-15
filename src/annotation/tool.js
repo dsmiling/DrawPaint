@@ -6,12 +6,15 @@ import {
 import {
   ANNOTATION_BEND_RATIO,
   ANNOTATION_DEFAULT_COLOR,
+  ANNOTATION_DEFAULT_SIZE,
   ANNOTATION_LABEL_POSITION,
   ANNOTATION_MAX_BEND,
   ANNOTATION_MIN_BEND,
   ANNOTATION_MIN_LENGTH,
   ANNOTATION_TOOL_ID,
 } from "./constants.js";
+import { requestAnnotationDockOpen } from "./dockBridge.js";
+import { getAnnotationScale } from "./scale.js";
 
 function getAnnotationColor(editor) {
   const color = editor.getStyleForNextShape(DefaultColorStyle);
@@ -34,17 +37,6 @@ function getDefaultAnnotationArrowBend(dx, dy, scale) {
 function unlockGlobalToolLock(editor) {
   if (!editor.getInstanceState().isToolLocked) return;
   editor.updateInstanceState({ isToolLocked: false });
-}
-
-function getAnnotationScale(editor) {
-  try {
-    if (editor.user?.getIsDynamicResizeMode?.()) {
-      return 1 / editor.getZoomLevel();
-    }
-  } catch {
-    // ignore
-  }
-  return 1;
 }
 
 /** tldraw 3: enter label edit (Cowart v5 uses startEditingShapeWithRichText). */
@@ -146,11 +138,12 @@ class DrawpaintAnnotationPointing extends StateNode {
       meta: {
         drawpaintAnnotationArrow: true,
         cowartAnnotationArrow: true,
+        drawpaintAnnotationScaleV2: true,
       },
       props: {
         kind: "arc",
         dash: "draw",
-        size: "m",
+        size: ANNOTATION_DEFAULT_SIZE,
         fill: "none",
         color,
         labelColor: color,
@@ -230,7 +223,14 @@ class DrawpaintAnnotationPointing extends StateNode {
       },
     ]);
 
-    startEditingAnnotationArrowLabel(this.editor, this.arrowId);
+    // Stay on select so user can adjust direction; open dock for text/refs (no on-canvas edit).
+    try {
+      this.editor.setCurrentTool("select");
+    } catch {
+      // ignore
+    }
+    this.editor.select(this.arrowId);
+    requestAnnotationDockOpen(this.arrowId);
   }
 
   cancel() {

@@ -21,8 +21,8 @@ import {
 import {
   ANNOTATION_TOOL_ID,
   ANNOTATION_TOOL_LABEL,
-  ANNOTATION_EDIT_TOOL_LABEL,
   AnnotationRefDock,
+  AnnotationRefPins,
   DrawpaintAnnotationTool,
   DrawpaintImageToolbar,
   addAnnotationRef,
@@ -34,6 +34,7 @@ import {
   setAnnotationEditHandler,
   unlockGlobalToolLock,
 } from "./annotation/index.js";
+import { setAnnotationDockOpenHandler } from "./annotation/dockBridge.js";
 import {
   AI_IMAGE_ASPECT_PRESETS,
   createAiImageHolderAtViewportCenter,
@@ -52,10 +53,10 @@ function buildCursorPromptDeeplink(promptText) {
   let encoded = encodeURIComponent(text);
   if (encoded.length > maxEncoded) {
     text = [
-      "请处理 DrawPaint 待办请求。",
-      "完整内容已写入 canvas/pending-request.json，请用 MCP get_drawpaint_pending_request 读取后执行。",
+      "Process the pending DrawPaint request.",
+      "Read the complete request from canvas/pending-request.json using MCP get_drawpaint_pending_request, then execute it.",
       "",
-      "摘要：",
+      "Summary:",
       promptText.slice(0, 1200),
       "…",
     ].join("\n");
@@ -76,10 +77,10 @@ function openCursorChat(promptText) {
   return href;
 }
 
-const CHAT_BOOT_PROMPT = `请立即处理 DrawPaint 待办请求：
-1. 调用 get_drawpaint_pending_request（或读 canvas/pending-request.json）
-2. 若 type 为 ai_image_generate：按 drawpaint-image-gen Skill；按 targetWidth/Height 生图，再用 insert_drawpaint_image（anchorShapeId + replaceAiImageHolder: true）替换 AI 图片框
-3. 若 type 为 annotate_edit：按 drawpaint-image-edit Skill；阅读标注截图，生成干净新图，insert_drawpaint_image（anchorShapeId=原图, placement: right, margin: 40, matchAnchor: true, replaceAiImageHolder: false）
+const CHAT_BOOT_PROMPT = `Process the pending DrawPaint request now. Write model-facing instructions and image-generation prompts in English. Preserve exact requested in-image text in its original language; keep user-facing summaries in Chinese:
+1. Call get_drawpaint_pending_request (or read canvas/pending-request.json). Read the complete JSON, not just screenshot paths in the conversation.
+2. If type is ai_image_generate, follow the drawpaint-image-gen skill. Generate for targetWidth/Height, then replace the AI image holder using insert_drawpaint_image with anchorShapeId and replaceAiImageHolder: true.
+3. If type is annotate_edit, follow the drawpaint-image-edit skill. Inspect the annotation screenshot (WHERE) and open reference images in elementRefs / referencePaths (WHAT). Generate a clean new image and call insert_drawpaint_image with anchorShapeId set to the source image, placement: right, margin: 40, matchAnchor: true, replaceAiImageHolder: false.
 4. clear_drawpaint_pending_request`;
 
 function buildAiImageHolderPrompt({ prompt, holder, references }) {
@@ -94,10 +95,10 @@ function buildAiImageHolderPrompt({ prompt, holder, references }) {
         ];
 
   return [
-    "请为 DrawPaint 的 AI 图片框生成最终位图，并用 MCP 替换该框。",
+    "Generate a final bitmap for the DrawPaint AI image holder and replace the holder using MCP.",
     "",
-    "## 用户 Prompt",
-    prompt.trim() || "（无）",
+    "## User prompt",
+    prompt.trim() || "(none)",
     "",
     `Target canvas slot: ${Math.round(holder.targetWidth)} x ${Math.round(holder.targetHeight)} canvas units.`,
     `Target aspect ratio: ${holder.targetAspectRatio} (${holder.targetAspectDecimal.toFixed(4)} width/height).`,
@@ -193,19 +194,19 @@ function buildGeneratePrompt({ prompt, selection }) {
     .filter(Boolean);
 
   return [
-    "请处理 DrawPaint 画布发来的生图/改图请求。",
+    "Process the image generation/editing request from the DrawPaint canvas.",
     "",
-    "## 用户 Prompt",
+    "## User prompt",
     prompt.trim() ||
-      (altTexts.length ? altTexts.join("\n") : "（无）"),
+      (altTexts.length ? altTexts.join("\n") : "(none)"),
     "",
-    "## 图片 Alternative Text / 描述",
-    altTexts.length ? altTexts.map((t, i) => `${i + 1}. ${t}`).join("\n") : "（无）",
+    "## Image alternative text / descriptions",
+    altTexts.length ? altTexts.map((t, i) => `${i + 1}. ${t}`).join("\n") : "(none)",
     "",
-    "## 当前选区",
-    selected || "（未选中形状）",
+    "## Current selection",
+    selected || "(no shapes selected)",
     "",
-    "完成后请用 insert_drawpaint_image 把结果图插入画布，并 clear_drawpaint_pending_request。",
+    "When complete, insert the result using insert_drawpaint_image, then call clear_drawpaint_pending_request.",
   ].join("\n");
 }
 
@@ -275,7 +276,7 @@ async function insertImageFromUrl(editor, url, opts = {}) {
   return id;
 }
 
-function computeFollowDockStyle(editor, shapeIds) {
+function computeFollowDockStyle(editor, shapeIds, opts = {}) {
   if (!editor || !shapeIds?.length) return null;
   const boxes = shapeIds
     .map((id) => editor.getShapePageBounds(id))
@@ -296,12 +297,15 @@ function computeFollowDockStyle(editor, shapeIds) {
   const frameW = Math.max(1, br.x - bl.x);
   const vp = editor.getViewportScreenBounds();
   const maxW = Math.max(280, (vp?.width || 800) - 24);
-  const width = Math.min(Math.max(frameW, 320), Math.min(560, maxW));
+  const minWidth = opts.minWidth ?? 320;
+  const width = Math.min(Math.max(frameW, minWidth), Math.min(560, maxW));
+  const estimatedH = opts.estimatedH ?? 160;
 
+  const topGap = opts.topGap ?? 12;
   let left = bl.x + frameW / 2 - width / 2;
-  let top = bl.y + 12;
+  let top = bl.y + topGap;
   left = Math.max(8, Math.min(left, maxW - width + 8));
-  const maxTop = Math.max(8, (vp?.height || 600) - 160);
+  const maxTop = Math.max(8, (vp?.height || 600) - estimatedH);
   top = Math.max(8, Math.min(top, maxTop));
 
   return { left, top, width };
@@ -510,53 +514,6 @@ function SizeSidePanel({
   );
 }
 
-/** Cowart-style: selected image gets an action strip (not a generate prompt). */
-function ImageAnnotateDock({
-  busy,
-  onAnnotate,
-  lastRequestId,
-  dockStyle,
-  imageShapeId,
-}) {
-  if (!imageShapeId || !dockStyle) return null;
-
-  return (
-    <div
-      className="dp-dock dp-dock--annotate"
-      role="dialog"
-      aria-label="标注修改"
-      style={{
-        left: dockStyle.left,
-        top: dockStyle.top,
-        width: Math.max(dockStyle.width || 320, 360),
-      }}
-    >
-      <div className="dp-dock__row">
-        <div className="dp-dock__hint-inline">
-          自动收集附近标注与元素参考图 · 点按钮提交
-        </div>
-        <button
-          type="button"
-          className="dp-dock__send"
-          disabled={busy}
-          onClick={() => onAnnotate(imageShapeId)}
-        >
-          {busy ? "提交中…" : ANNOTATION_EDIT_TOOL_LABEL}
-        </button>
-        {lastRequestId ? (
-          <button
-            type="button"
-            className="dp-dock__ghost"
-            onClick={() => openCursorChat(CHAT_BOOT_PROMPT)}
-          >
-            再开对话
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const editorRef = useRef(null);
   const saveTimer = useRef(null);
@@ -568,8 +525,11 @@ export default function App() {
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [lastRequestId, setLastRequestId] = useState(null);
   const [holderInfo, setHolderInfo] = useState(null);
-  const [selectedImageId, setSelectedImageId] = useState(null);
   const [selectedAnnotationArrowId, setSelectedAnnotationArrowId] = useState(null);
+  /** Double-click / after-draw opens the text+refs panel; single select does not. */
+  const [annotationDockOpen, setAnnotationDockOpen] = useState(false);
+  /** Avoid selection listener closing the dock in the same tick as double-click open. */
+  const keepAnnotationDockRef = useRef(false);
   const [pickingRefForArrowId, setPickingRefForArrowId] = useState(null);
   const [editorInstance, setEditorInstance] = useState(null);
   const [aspectPresetId, setAspectPresetId] = useState("1-1");
@@ -581,6 +541,12 @@ export default function App() {
     window.setTimeout(() => setToast(""), 2800);
   }, []);
 
+  const annotationDockStyleOpts = {
+    minWidth: 380,
+    estimatedH: 300,
+    topGap: 56,
+  };
+
   const refreshDockPosition = useCallback(() => {
     const editor = editorRef.current;
     if (!editor) {
@@ -588,7 +554,17 @@ export default function App() {
       return;
     }
     const ids = [...editor.getSelectedShapeIds()];
-    setDockStyle(computeFollowDockStyle(editor, ids));
+    const only = editor.getSelectedShapes();
+    const isArrow = only.length === 1 && only[0]?.type === "arrow";
+    setDockStyle(
+      computeFollowDockStyle(
+        editor,
+        ids,
+        isArrow
+          ? annotationDockStyleOpts
+          : { minWidth: 320, estimatedH: 160, topGap: 12 },
+      ),
+    );
   }, []);
 
   useEffect(() => {
@@ -598,6 +574,22 @@ export default function App() {
     } catch {
       // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    setAnnotationDockOpenHandler((arrowId) => {
+      keepAnnotationDockRef.current = true;
+      setSelectedAnnotationArrowId(arrowId);
+      setAnnotationDockOpen(true);
+      setHolderInfo(null);
+      const editor = editorRef.current;
+      if (editor) {
+        setDockStyle(
+          computeFollowDockStyle(editor, [arrowId], annotationDockStyleOpts),
+        );
+      }
+    });
+    return () => setAnnotationDockOpenHandler(null);
   }, []);
 
   const persistSelection = useCallback(async (editor) => {
@@ -620,9 +612,11 @@ export default function App() {
         setPickingRefForArrowId(null);
         editor.select(pickingRefForArrowId);
         setSelectedAnnotationArrowId(pickingRefForArrowId);
-        setSelectedImageId(null);
+        setAnnotationDockOpen(true);
         setHolderInfo(null);
-        setDockStyle(computeFollowDockStyle(editor, [pickingRefForArrowId]));
+        setDockStyle(
+          computeFollowDockStyle(editor, [pickingRefForArrowId], annotationDockStyleOpts),
+        );
         await saveSelection({
           shapes: editor.getSelectedShapes().map((s) => summarizeShape(editor, s)),
           bounds: editor.getSelectionPageBounds()
@@ -642,8 +636,8 @@ export default function App() {
     if (only.length === 1 && isAiImageHolderShape(only[0])) {
       const info = summarizeHolderForRequest(only[0]);
       setHolderInfo(info);
-      setSelectedImageId(null);
       setSelectedAnnotationArrowId(null);
+      setAnnotationDockOpen(false);
       const matched = AI_IMAGE_ASPECT_PRESETS.find(
         (p) => Math.abs(p.w / p.h - (info.targetWidth || 1) / (info.targetHeight || 1)) < 0.02,
       );
@@ -651,16 +645,32 @@ export default function App() {
     } else if (only.length === 1 && only[0].type === "arrow") {
       ensureAnnotationArrow(editor, only[0]);
       setHolderInfo(null);
-      setSelectedImageId(null);
-      setSelectedAnnotationArrowId(only[0].id);
+      const arrowId = only[0].id;
+      setSelectedAnnotationArrowId((prev) => {
+        if (prev !== arrowId && !keepAnnotationDockRef.current) {
+          setAnnotationDockOpen(false);
+        }
+        keepAnnotationDockRef.current = false;
+        return arrowId;
+      });
+      setDockStyle(
+        computeFollowDockStyle(editor, [arrowId], annotationDockStyleOpts),
+      );
+      await saveSelection({
+        shapes,
+        bounds: bounds
+          ? { x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h }
+          : null,
+      });
+      return;
     } else if (only.length === 1 && isImageShape(only[0])) {
       setHolderInfo(null);
       setSelectedAnnotationArrowId(null);
-      setSelectedImageId(only[0].id);
+      setAnnotationDockOpen(false);
     } else {
       setHolderInfo(null);
-      setSelectedImageId(null);
       setSelectedAnnotationArrowId(null);
+      setAnnotationDockOpen(false);
     }
     setDockStyle(computeFollowDockStyle(editor, only.map((s) => s.id)));
     await saveSelection({
@@ -894,8 +904,8 @@ export default function App() {
       const launchPrompt = [
         CHAT_BOOT_PROMPT,
         "",
-        `请求 ID：${request.id}`,
-        holder ? `AI 图片框：${holder.anchorShapeId}` : "",
+        `Request ID: ${request.id}`,
+        holder ? `AI image holder: ${holder.anchorShapeId}` : "",
         "",
         fullPrompt,
       ]
@@ -956,14 +966,29 @@ export default function App() {
         });
         setLastRequestId(request.id);
         const refCount = prepared.elementRefs?.length || 0;
+        const refPathLines =
+          refCount === 0
+            ? ["Element reference images: 0 (edit using the screenshot only)"]
+            : [
+                `Element reference images: ${refCount} (open these files to see WHAT to place)`,
+                ...prepared.elementRefs.map((r, i) => {
+                  const p =
+                    request.elementRefs?.[i]?.absolutePath ||
+                    request.elementRefs?.[i]?.filePath ||
+                    r.filePath ||
+                    r.relativePath;
+                  const where = r.arrowText ? ` ←「${r.arrowText}」` : "";
+                  return `  ${i + 1}. ${p}${where}`;
+                }),
+              ];
         const launchPrompt = [
           CHAT_BOOT_PROMPT,
           "",
-          `请求 ID：${request.id}`,
-          `原图 shape：${imageShapeId}`,
-          `附近标注：${prepared.annotationCount} 个`,
-          `元素参考图：${refCount} 张`,
-          `标注截图：${prepared.screenshotRelativePath}`,
+          `Request ID: ${request.id}`,
+          `Source image shape: ${imageShapeId}`,
+          `Nearby annotations: ${prepared.annotationCount}`,
+          ...refPathLines,
+          `Annotation screenshot: ${request.screenshotAbsolutePath || prepared.screenshotRelativePath}`,
           "",
           prepared.fullPrompt,
         ].join("\n");
@@ -1079,7 +1104,9 @@ export default function App() {
           {pickingRefForArrowId
             ? "选图模式：点击画布上的图片挂到标注"
             : selectedAnnotationArrowId
-              ? "已选标注箭头 · 底部可附加参考图"
+              ? annotationDockOpen
+                ? "编辑标注文字与参考图 · 单击空白处关闭"
+                : "已选标注 · 拖动手柄改指向 · 双击编辑文字/参考图"
               : status}
         </div>
       </header>
@@ -1114,10 +1141,20 @@ export default function App() {
               dockStyle={dockStyle}
             />
           </>
-        ) : selectedAnnotationArrowId && (editorInstance || editorRef.current) ? (
+        ) : selectedAnnotationArrowId &&
+          annotationDockOpen &&
+          (editorInstance || editorRef.current) ? (
           <AnnotationRefDock
             editor={editorInstance || editorRef.current}
             arrowId={selectedAnnotationArrowId}
+            dockStyle={
+              dockStyle ||
+              computeFollowDockStyle(
+                editorInstance || editorRef.current,
+                [selectedAnnotationArrowId],
+                annotationDockStyleOpts,
+              )
+            }
             pickingFromCanvas={Boolean(pickingRefForArrowId)}
             onStartPickCanvas={() => {
               setPickingRefForArrowId(selectedAnnotationArrowId);
@@ -1127,17 +1164,17 @@ export default function App() {
               setPickingRefForArrowId(null);
               showToast("已取消选图");
             }}
+            onClose={() => setAnnotationDockOpen(false)}
             showToast={showToast}
           />
-        ) : (
-          <ImageAnnotateDock
-            busy={busy}
-            onAnnotate={onAnnotationEdit}
-            lastRequestId={lastRequestId}
-            dockStyle={dockStyle}
-            imageShapeId={selectedImageId}
+        ) : null}
+        {editorInstance || editorRef.current ? (
+          <AnnotationRefPins
+            editor={editorInstance || editorRef.current}
+            selectedArrowId={selectedAnnotationArrowId}
+            dockOpen={annotationDockOpen}
           />
-        )}
+        ) : null}
         {toast ? <div className="dp-toast">{toast}</div> : null}
       </div>
     </div>

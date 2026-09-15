@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:ui": "node --test tests/ui-studio.test.mjs tests/agent-threads.test.mjs tests/mockup-workflow.test.mjs tests/hybrid.test.mjs",
+    "ui:job": "node scripts/ui-studio.mjs",
     "dev": "node ./server/dev.mjs",
     "build": "vite build",
     "preview": "vite preview",
@@ -13,8 +15,12 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "ag-psd": "^31.0.2",
+    "fflate": "^0.8.3",
+    "radix-ui": "1.6.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.35.4",
     "tldraw": "^3.15.1",
     "vite": "^6.0.0",
     "zod": "^3.24.0"

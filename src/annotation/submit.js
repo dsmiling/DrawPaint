@@ -39,12 +39,14 @@ export function buildAnnotationEditPrompt({
   const annotationCount = Math.max(0, shapeIds.length - 1);
   const refLines =
     elementRefs.length === 0
-      ? ["（无标注参考图；仅按截图中的箭头与文字修改）"]
+      ? ["(No annotation reference images; edit using the screenshot arrows and text only.)"]
       : [
-          "以下参考图是「要放入标注位置的元素/内容」。请把对应内容合成到截图中箭头指向处：",
+          "These references show the elements/content to place at annotated locations. Composite the corresponding content at the arrow targets:",
           ...elementRefs.map((r, i) => {
-            const where = r.arrowText ? `（箭头文字「${r.arrowText}」）` : "";
-            return `${i + 1}. [${r.source}] ${r.relativePath} ${where} arrow=${r.arrowId}`;
+            const where = r.arrowText ? `(arrow text: ${r.arrowText})` : "";
+            const path =
+              r.filePath || r.absolutePath || r.relativePath || "(missing path)";
+            return `${i + 1}. [${r.source}] ${path} ${where} arrow=${r.arrowId}`;
           }),
         ];
 
@@ -57,15 +59,15 @@ export function buildAnnotationEditPrompt({
     `Annotation screenshot local path: ${screenshotRelativePath}`,
     "Use this local screenshot file as the authoritative visual reference for WHERE to edit.",
     "",
-    "## 标注参考图 / 元素参考（WHAT to place）",
+    "## Annotation / element references (WHAT to place)",
     ...refLines,
     "",
-    "插入时用 insert_drawpaint_image：",
+    "Insert using insert_drawpaint_image:",
     `- anchorShapeId: "${imageShapeId}"`,
     "- placement: right, margin: 40, matchAnchor: true",
     "- replaceAiImageHolder: false",
-    "不要删除或移动原图与标注；把干净新图放到原图右侧。",
-    "最后 clear_drawpaint_pending_request。",
+    "Do not delete or move the original image or annotations; place the clean new image to the right of the original.",
+    "Finally, call clear_drawpaint_pending_request.",
   ].join("\n");
 }
 
@@ -84,7 +86,19 @@ async function blobToDataUrl(blob) {
 export async function prepareAnnotationEditRequest(editor, imageShapeId, {
   uploadAsset,
 }) {
-  const shapeIds = collectAnnotationEditShapeIds(editor, imageShapeId);
+  const baseShapeIds = collectAnnotationEditShapeIds(editor, imageShapeId);
+
+  // Explicit dock refs + inferred from arrow start binding / proximity (exclude edit target).
+  // Do NOT persist inferred refs onto the arrow — that suddenly adds pin thumbs after submit.
+  const rawRefs = collectRefsFromShapeIds(editor, baseShapeIds, {
+    excludeShapeIds: [imageShapeId],
+    persistInferred: false,
+  });
+  const refImageIds = rawRefs
+    .filter((r) => r.source === "canvas" && r.shapeId && r.shapeId !== imageShapeId)
+    .map((r) => r.shapeId);
+  const shapeIds = Array.from(new Set([...baseShapeIds, ...refImageIds]));
+
   const rawBounds = unionPageBounds(editor, shapeIds);
   if (!rawBounds) throw new Error("无法计算截图范围。");
 
@@ -126,7 +140,6 @@ export async function prepareAnnotationEditRequest(editor, imageShapeId, {
     throw new Error("标注截图上传失败。");
   }
 
-  const rawRefs = collectRefsFromShapeIds(editor, shapeIds);
   const elementRefs = await materializeAnnotationRefs(editor, rawRefs, uploadAsset);
 
   const fullPrompt = buildAnnotationEditPrompt({

@@ -18,6 +18,7 @@ import {
   writeJson,
 } from "./storage.mjs";
 import { enrichSelection, insertDrawpaintImage } from "./insert-image.mjs";
+import { completeUiJob, completeUiLayers, uiRequest } from "./ui-studio/client.mjs";
 
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 const CANVAS_DIR = initCanvasLayout(PROJECT_DIR);
@@ -42,7 +43,7 @@ async function ensureServers() {
   return {
     canvasUrl: CANVAS_URL,
     alreadyRunning: false,
-    hint: "请在项目根目录运行 npm run dev，然后在浏览器打开画布 URL。",
+    hint: "Run npm run dev in the project root, then open the canvas URL in a browser.",
   };
 }
 
@@ -102,7 +103,7 @@ server.tool(
               ...status,
               projectDir: PROJECT_DIR,
               canvasDir: CANVAS_DIR,
-              howToOpen: `在 Cursor Simple Browser 或系统浏览器打开 ${status.canvasUrl}`,
+              howToOpen: `Open ${status.canvasUrl} in Cursor Simple Browser or the system browser.`,
             },
             null,
             2,
@@ -234,4 +235,19 @@ server.tool(
 );
 
 const transport = new StdioServerTransport();
+server.tool("get_drawpaint_ui_jobs", "List independent UI asset mode jobs; does not read or modify ordinary image requests.", {}, async () => ({
+  content: [{ type: "text", text: JSON.stringify(await uiRequest("jobs")) }],
+}));
+server.tool("get_drawpaint_ui_request", "Read the UI atlas generation prompt and reference files for one independent UI task.",
+  { jobId: z.string().uuid() }, async ({ jobId }) => ({
+    content: [{ type: "text", text: JSON.stringify(await uiRequest(`jobs/${jobId}/agent-request`)) }],
+  }));
+server.tool("complete_drawpaint_ui_job", "Submit a generated UI atlas to its own UI task. Automatically removes background, slices components and returns results to the UI material canvas. Never use ordinary insert_drawpaint_image for this mode.",
+  { jobId: z.string().uuid(), imagePath: z.string() }, async ({ jobId, imagePath }) => ({
+    content: [{ type: "text", text: JSON.stringify(await completeUiJob(jobId, path.resolve(PROJECT_DIR, imagePath))) }],
+  }));
+server.tool("complete_drawpaint_ui_layers", "Submit independent semantic PNG layers for an AI decomposition task. The JSON manifest contains layers with imagePath, name, layerType, parent-local x/y/w/h and zIndex. Preserves parent-child lineage; never submit an atlas for these tasks.",
+  { jobId: z.string().uuid(), manifestPath: z.string() }, async ({ jobId, manifestPath }) => ({
+    content: [{ type: "text", text: JSON.stringify(await completeUiLayers(jobId, path.resolve(PROJECT_DIR, manifestPath))) }],
+  }));
 await server.connect(transport);

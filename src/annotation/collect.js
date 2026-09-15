@@ -54,9 +54,23 @@ function uniqueShapeIds(shapeIds) {
   return Array.from(new Set(shapeIds.filter(Boolean)));
 }
 
+function arrowEndBoundToImage(editor, arrowShape, imageShapeId) {
+  try {
+    const bindings =
+      editor.getBindingsFromShape?.(arrowShape, "arrow") ||
+      editor.getBindingsFromShape?.(arrowShape.id, "arrow") ||
+      [];
+    return bindings.some(
+      (b) => b?.props?.terminal === "end" && b.toId === imageShapeId,
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Cowart collectAnnotationEditShapeIds:
- * target image + nearby annotation arrows + related text.
+ * Target image + nearby annotation arrows + arrows whose tip binds to the target
+ * + related text. Binding ensures upload/canvas refs on far arrows are not dropped.
  */
 export function collectAnnotationEditShapeIds(editor, imageShapeId) {
   const targetShape = editor.getShape(imageShapeId);
@@ -77,15 +91,18 @@ export function collectAnnotationEditShapeIds(editor, imageShapeId) {
   for (const shape of editor.getCurrentPageShapesSorted()) {
     if (!shape || shape.id === imageShapeId) continue;
     const bounds = editor.getShapePageBounds(shape);
-    if (!bounds) continue;
 
-    if (isAnnotationArrowShape(shape) && nearBounds.collides(bounds)) {
-      relatedArrowIds.push(shape.id);
-      relatedArrowBounds.push(bounds);
+    if (isAnnotationArrowShape(shape)) {
+      const near = bounds && nearBounds.collides(bounds);
+      const tipOnTarget = arrowEndBoundToImage(editor, shape, imageShapeId);
+      if (near || tipOnTarget) {
+        relatedArrowIds.push(shape.id);
+        if (bounds) relatedArrowBounds.push(bounds);
+      }
       continue;
     }
 
-    if (!isAnnotationTextShape(shape)) continue;
+    if (!isAnnotationTextShape(shape) || !bounds) continue;
 
     if (nearBounds.collides(bounds)) {
       relatedTextIds.push(shape.id);

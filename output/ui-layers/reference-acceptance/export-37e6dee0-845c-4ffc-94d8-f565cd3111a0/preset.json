@@ -1,0 +1,295 @@
+{
+  "schema": "drawpaint.ui-preset.v1",
+  "name": "分离底图、ICON、文字、边框和装饰，保留可独立复用的 UI 组件。",
+  "width": 262,
+  "height": 81,
+  "variant": "latest",
+  "root": {
+    "name": "分离底图、ICON、文字、边框和装饰，保留可独立复用的 UI 组件。",
+    "layerType": "preset",
+    "x": 0,
+    "y": 0,
+    "w": 262,
+    "h": 81,
+    "children": [
+      {
+        "layerType": "background",
+        "semanticSource": "ai",
+        "name": "计数器底板",
+        "id": "slice-1",
+        "x": 0,
+        "y": 8,
+        "w": 262,
+        "h": 66,
+        "zIndex": 0,
+        "group": "",
+        "notes": "完整深色底板及连续金色细边，去掉星形、1280和增加按钮；补全被遮挡材质，保持原轮廓与颜色。",
+        "positivePoints": [
+          [
+            175,
+            54
+          ],
+          [
+            100,
+            60
+          ]
+        ],
+        "negativePoints": [
+          [
+            2,
+            9
+          ]
+        ],
+        "parentId": null,
+        "repairMode": "surface",
+        "maskMode": "sam",
+        "cleanupArea": 0,
+        "edgeFeather": 0,
+        "reconstructionNotes": "保持原图金色细边、深色底板和左端小菱形；去掉独立星形、数字和按钮，补全连续材质。Mask 仅作为归属参考。",
+        "repairPadding": 0,
+        "regionId": "plate",
+        "maskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plate-mask.png",
+        "exclusionFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plate-excluded.png",
+        "repairMaskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plate-repair.png",
+        "repairPixels": 4942,
+        "warnings": [
+          "半透明边缘较多，请在深浅背景上检查残边"
+        ],
+        "referenceFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plate-reference.png",
+        "guideFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plate-guide.png",
+        "referenceIndex": 1,
+        "extraction": "mask-guided-ai",
+        "maskPurpose": "reference",
+        "generationMapping": {
+          "generatedWidth": 2007,
+          "generatedHeight": 784,
+          "generatedRect": {
+            "x": 25,
+            "y": 132,
+            "w": 1930,
+            "h": 486
+          },
+          "frame": "explicit",
+          "layoutWidth": 262,
+          "layoutHeight": 66
+        },
+        "imageWidth": 1930,
+        "imageHeight": 486,
+        "contentHash": "658184be3b7ef28e71ae36a280c261c32e4a5a9bd82472e92265c1a12575f249",
+        "jobId": "3b5334a4-5fbb-44c5-9068-1b7d7028bf71",
+        "revision": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2",
+        "imageFile": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2/658184be3b7ef28e71ae36a280c261c32e4a5a9bd82472e92265c1a12575f249.png",
+        "children": [],
+        "opacity": 1,
+        "hidden": false,
+        "sprite": "Sprites/layer-1.png"
+      },
+      {
+        "layerType": "icon",
+        "semanticSource": "ai",
+        "name": "原始星形图标",
+        "id": "slice-2",
+        "x": 17,
+        "y": 0,
+        "w": 73,
+        "h": 81,
+        "zIndex": 1,
+        "group": "",
+        "notes": "",
+        "positivePoints": [
+          [
+            52,
+            37
+          ]
+        ],
+        "negativePoints": [
+          [
+            22,
+            60
+          ]
+        ],
+        "parentId": "plate",
+        "repairMode": "none",
+        "maskMode": "sam",
+        "cleanupArea": 0,
+        "edgeFeather": 0,
+        "reconstructionNotes": "",
+        "repairPadding": 0,
+        "regionId": "star",
+        "maskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/star-mask.png",
+        "exclusionFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/star-excluded.png",
+        "repairMaskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/star-repair.png",
+        "repairPixels": 0,
+        "warnings": [
+          "半透明边缘较多，请在深浅背景上检查残边"
+        ],
+        "referenceFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/star-reference.png",
+        "guideFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/star-guide.png",
+        "referenceIndex": 2,
+        "extraction": "mask-guided-ai",
+        "maskPurpose": "reference",
+        "generationMapping": {
+          "generatedWidth": 1191,
+          "generatedHeight": 1321,
+          "generatedRect": {
+            "x": 23,
+            "y": 20,
+            "w": 1145,
+            "h": 1271
+          },
+          "frame": "explicit",
+          "layoutWidth": 73,
+          "layoutHeight": 81
+        },
+        "imageWidth": 1145,
+        "imageHeight": 1271,
+        "contentHash": "117cda90d3adf2cb88845d5427e99e107926ca54f93e5c85d2763ec89163113b",
+        "jobId": "3b5334a4-5fbb-44c5-9068-1b7d7028bf71",
+        "revision": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2",
+        "imageFile": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2/117cda90d3adf2cb88845d5427e99e107926ca54f93e5c85d2763ec89163113b.png",
+        "children": [],
+        "opacity": 1,
+        "hidden": false,
+        "sprite": "Sprites/layer-2.png"
+      },
+      {
+        "layerType": "text",
+        "semanticSource": "ai",
+        "name": "原始数字1280",
+        "text": "1280",
+        "fontFamily": "",
+        "fontSize": 24,
+        "textColor": "#ffffff",
+        "textAlign": "center",
+        "textRender": "image",
+        "id": "slice-3",
+        "x": 109,
+        "y": 26,
+        "w": 78,
+        "h": 34,
+        "zIndex": 2,
+        "group": "",
+        "notes": "",
+        "positivePoints": [],
+        "negativePoints": [],
+        "parentId": "plate",
+        "repairMode": "none",
+        "maskMode": "sam",
+        "cleanupArea": 0,
+        "edgeFeather": 0,
+        "reconstructionNotes": "",
+        "repairPadding": 0,
+        "regionId": "number",
+        "maskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/number-mask.png",
+        "exclusionFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/number-excluded.png",
+        "repairMaskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/number-repair.png",
+        "repairPixels": 0,
+        "warnings": [
+          "半透明边缘较多，请在深浅背景上检查残边"
+        ],
+        "referenceFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/number-reference.png",
+        "guideFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/number-guide.png",
+        "referenceIndex": 3,
+        "extraction": "mask-guided-ai",
+        "maskPurpose": "reference",
+        "generationMapping": {
+          "generatedWidth": 1899,
+          "generatedHeight": 828,
+          "generatedRect": {
+            "x": 245,
+            "y": 105,
+            "w": 1420,
+            "h": 619
+          },
+          "frame": "explicit",
+          "layoutWidth": 78,
+          "layoutHeight": 34
+        },
+        "imageWidth": 1420,
+        "imageHeight": 619,
+        "contentHash": "a59fd0805bc84094227c1ad3b591282efa0545ee48d995afffe7914fa3af91f7",
+        "jobId": "3b5334a4-5fbb-44c5-9068-1b7d7028bf71",
+        "revision": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2",
+        "imageFile": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2/a59fd0805bc84094227c1ad3b591282efa0545ee48d995afffe7914fa3af91f7.png",
+        "children": [],
+        "opacity": 1,
+        "hidden": false,
+        "sprite": "Sprites/layer-3.png"
+      },
+      {
+        "layerType": "button",
+        "semanticSource": "ai",
+        "name": "原始增加按钮",
+        "id": "slice-4",
+        "x": 207,
+        "y": 12,
+        "w": 55,
+        "h": 60,
+        "zIndex": 3,
+        "group": "",
+        "notes": "",
+        "positivePoints": [
+          [
+            233,
+            25
+          ],
+          [
+            246,
+            46
+          ]
+        ],
+        "negativePoints": [
+          [
+            208,
+            14
+          ]
+        ],
+        "parentId": "plate",
+        "repairMode": "none",
+        "maskMode": "sam",
+        "cleanupArea": 0,
+        "edgeFeather": 0,
+        "reconstructionNotes": "",
+        "repairPadding": 0,
+        "regionId": "plus",
+        "maskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plus-mask.png",
+        "exclusionFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plus-excluded.png",
+        "repairMaskFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plus-repair.png",
+        "repairPixels": 0,
+        "warnings": [
+          "半透明边缘较多，请在深浅背景上检查残边"
+        ],
+        "referenceFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plus-reference.png",
+        "guideFile": "masks-d4067d1e-9c2b-46e8-b5e9-da3aa3f22174/plus-guide.png",
+        "referenceIndex": 4,
+        "extraction": "mask-guided-ai",
+        "maskPurpose": "reference",
+        "generationMapping": {
+          "generatedWidth": 1299,
+          "generatedHeight": 1211,
+          "generatedRect": {
+            "x": 180,
+            "y": 110,
+            "w": 925,
+            "h": 1009
+          },
+          "frame": "explicit",
+          "layoutWidth": 55,
+          "layoutHeight": 60
+        },
+        "imageWidth": 925,
+        "imageHeight": 1009,
+        "contentHash": "8fc95f6d3099bff24afc92e9321044aea09924ff416ebc4fc803847ce0338517",
+        "jobId": "3b5334a4-5fbb-44c5-9068-1b7d7028bf71",
+        "revision": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2",
+        "imageFile": "60efd1d4-8f09-4d4c-9b78-cbc67e8023a2/8fc95f6d3099bff24afc92e9321044aea09924ff416ebc4fc803847ce0338517.png",
+        "children": [],
+        "opacity": 1,
+        "hidden": false,
+        "sprite": "Sprites/layer-4.png"
+      }
+    ],
+    "opacity": 1,
+    "hidden": false
+  }
+}

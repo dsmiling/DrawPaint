@@ -4,6 +4,13 @@ export const ANNOTATION_TOOL_LABEL = "标注";
 export const ANNOTATION_EDIT_TOOL_LABEL = "按标注修改";
 
 export const ANNOTATION_DEFAULT_COLOR = "red";
+/** tldraw size style for stroke + label text (s/m/l/xl). Applied only when creating. */
+export const ANNOTATION_DEFAULT_SIZE = "l";
+/**
+ * Mild scale boost at create time only (font ≈ size × scale).
+ * Do not re-apply on select — that breaks the style panel size control.
+ */
+export const ANNOTATION_SCALE_BOOST = 1.25;
 export const ANNOTATION_MIN_LENGTH = 8;
 export const ANNOTATION_BEND_RATIO = 0.12;
 export const ANNOTATION_MIN_BEND = 16;
@@ -20,13 +27,13 @@ export const ANNOTATION_EDIT_STATUS_RESET_MS = 2200;
 export const ANNOTATION_EDIT_COLORS = new Set(["red", "yellow", "orange"]);
 
 export const ANNOTATION_EDIT_PROMPT = [
-  "请根据 DrawPaint 标注截图做精准局部修改（inpainting / 组件替换）。",
+  "Make precise local edits based on the DrawPaint annotation screenshot (inpainting / component replacement).",
   "",
-  "截图包含当前图片以及图片附近的标注箭头和标注文字。",
-  "- 把标注文字当作修改要求。",
-  "- 若提供了「标注参考图 / 元素参考」，把参考图中的元素/内容合成到箭头指向的位置（保持图1主体风格）。",
-  "- 不要把标注箭头、标注文字、选区框或工具 UI 画进结果图。",
-  "- 保留原图主体与风格；把新图放到原图旁边。",
+  "The screenshot contains the current image and nearby annotation arrows and text.",
+  "- Treat annotation text as editing requirements.",
+  "- If annotation/element references are provided, composite their content at the arrow targets while preserving the source image style.",
+  "- Do not render annotation arrows, annotation text, selection outlines or tool UI in the result.",
+  "- Preserve the source subject and style; place the new image beside the original.",
 ].join("\n");
 
 export const ANNOTATION_REF_MAX = 10;
