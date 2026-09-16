@@ -1,6 +1,7 @@
 {
   "name": "drawpaint",
   "version": "0.1.0",
+  "description": "A local Codex/GPT-powered visual canvas for image generation, annotation-based editing, UI slicing, layering, and game-ready asset export.",
   "private": true,
   "type": "module",
   "scripts": {
