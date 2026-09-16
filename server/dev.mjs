@@ -9,14 +9,23 @@ const ROOT = path.resolve(__dirname, "..");
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 initCanvasLayout(PROJECT_DIR);
 
-const api = spawn(process.execPath, [path.join(__dirname, "http.mjs")], {
-  cwd: ROOT,
-  env: {
-    ...process.env,
-    DRAWPAINT_PROJECT_DIR: PROJECT_DIR,
+// Keep the API process in sync with the Vite client during development. Vite
+// already hot-reloads the browser, but previously server/http.mjs stayed on
+// the version that was running when `npm run dev` started. That could leave a
+// newly-added client route returning 404 until the whole dev command was
+// restarted manually.
+const api = spawn(
+  process.execPath,
+  ["--watch", "--watch-preserve-output", path.join(__dirname, "http.mjs")],
+  {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      DRAWPAINT_PROJECT_DIR: PROJECT_DIR,
+    },
+    stdio: "inherit",
   },
-  stdio: "inherit",
-});
+);
 
 api.on("exit", (code) => {
   if (code && code !== 0) {

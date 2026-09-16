@@ -20,6 +20,7 @@ import {
 } from "./storage.mjs";
 
 const PORT = Number(process.env.DRAWPAINT_API_PORT || 43218);
+const API_VERSION = 2;
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 const CANVAS_DIR = initCanvasLayout(PROJECT_DIR);
 const handleUiStudio = createUiStudioHandler(CANVAS_DIR);
@@ -90,6 +91,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/health") {
       return sendJson(res, 200, {
         ok: true,
+        apiVersion: API_VERSION,
+        capabilities: ["agent-request-dispatch"],
         projectDir: PROJECT_DIR,
         canvasDir: CANVAS_DIR,
         canvasUrl: `http://127.0.0.1:${Number(process.env.DRAWPAINT_PORT || 43217)}`,
@@ -191,12 +194,19 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/agent-request/dispatch") {
       const body = await readBody(req);
-      const request = readJson(agentRequestPath(CANVAS_DIR, body.requestId), null);
+      const requestFile = agentRequestPath(CANVAS_DIR, body.requestId);
+      const pending = readJson(pendingRequestPath(CANVAS_DIR), null);
+      // Requests created by DrawPaint versions before per-request persistence
+      // exist only in pending-request.json. Migrate that exact record on first
+      // dispatch so an API restart or client/server version skew is recoverable.
+      const request =
+        readJson(requestFile, null) ||
+        (pending?.id === body.requestId ? pending : null);
       if (!request || request.id !== body.requestId) throw new Error("待办请求不存在或已变化");
+      if (!fs.existsSync(requestFile)) writeJson(requestFile, request);
       const dispatched = await agentConnection.dispatchCanvas(request.id);
       const next = { ...request, status: "dispatched", dispatch: dispatched };
-      writeJson(agentRequestPath(CANVAS_DIR, request.id), next);
-      const pending = readJson(pendingRequestPath(CANVAS_DIR), null);
+      writeJson(requestFile, next);
       if (pending?.id === request.id) writeJson(pendingRequestPath(CANVAS_DIR), next);
       return sendJson(res, 200, { ok: true, ...dispatched });
     }

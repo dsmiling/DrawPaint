@@ -313,8 +313,8 @@ export default function UiStudio() {
       <MockupWorkflow job={selectedJob} jobs={jobs} editor={editor} ready={canvasReady} busy={busy} agent={agent} onRun={run} onRefresh={refresh} onSelect={setSelectedId} onPlan={setPlanDialog} onCompare={setCompareJob} />
       <details className="uis-history"><summary><h2>素材任务 <span>{jobs.length}</span></h2></summary>
         {!jobs.length && <p className="uis-hint">暂无任务</p>}
-        {jobs.map(job => <article className={`uis-job ${selectedId === job.id ? "is-selected" : ""}`} key={job.id}>
-          <button className="uis-job-title" onClick={() => setSelectedId(job.id)}><strong>{job.prompt}</strong><small>{job.operation === "plan" && jobs.find(j=>j.id===job.continuationId)?.status === "failed" ? "方案已完成 · 图片拆分失败" : jobStateLabel(job)}</small></button>
+        {jobs.map(job => <details className={`uis-job ${selectedId === job.id ? "is-selected" : ""}`} key={job.id}>
+          <summary className="uis-job-summary" onClick={() => setSelectedId(job.id)}><span className="uis-job-title"><strong title={job.prompt}>{job.prompt}</strong><small>{job.operation === "plan" && jobs.find(j=>j.id===job.continuationId)?.status === "failed" ? "方案已完成 · 图片拆分失败" : jobStateLabel(job)}</small></span></summary>
           <span className="uis-badge">{job.operation === "plan" ? "拆解方案" : job.operation === "decompose" ? "独立图层" : job.operation === "classify" ? "组件分类" : job.workflow === "mockup" ? "完整效果图" : "素材图集"}</span>
           {sourceFile(job) && <img className="uis-job-atlas uis-checker" src={assetUrl(job, job.repairPreview?.atlasFile || job.atlasFile || sourceFile(job))} alt={job.repairPreview ? "拆分候选预览" : "UI 图集预览"} />}
           {job.error && <p className="uis-error" role="alert">{job.error}</p>}
@@ -361,7 +361,7 @@ export default function UiStudio() {
             }}>{editor?.store.allRecords().some(s => s.typeName === "shape" && s.meta?.uiJobId === job.id && s.meta?.uiRevision === job.revision) ? "定位素材" : "回填画布"}</button>}
             {job.exportFile && <a href={assetUrl(job, job.exportFile)} download>下载 ZIP</a>}
           </div>
-        </article>)}
+        </details>)}
       </details>
     </aside></div>
     {planDialog && <PlanDialog key={planDialog.id} plan={planDialog} agent={agent} onClose={() => setPlanDialog(null)} onStarted={async job => { setSelectedId(job.id); setMessage(job.status === "awaiting_agent" ? "拆解任务已保存，连接 Agent 后启动。" : "正在按方案拆解，完成后自动显示候选图层供检查。"); await refresh(); }} />}
