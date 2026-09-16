@@ -53,6 +53,15 @@ export function pendingRequestPath(canvasDir) {
   return path.join(canvasDir, "pending-request.json");
 }
 
+export function agentRequestsDir(canvasDir) {
+  return path.join(canvasDir, "requests");
+}
+
+export function agentRequestPath(canvasDir, requestId) {
+  if (!/^[a-f0-9-]{36}$/.test(requestId || "")) throw new Error("Invalid DrawPaint request ID");
+  return path.join(agentRequestsDir(canvasDir), `${requestId}.json`);
+}
+
 export function pendingInsertsPath(canvasDir) {
   return path.join(canvasDir, "pending-inserts.json");
 }
@@ -60,6 +69,7 @@ export function pendingInsertsPath(canvasDir) {
 export function initCanvasLayout(projectDir) {
   const canvasDir = resolveCanvasDir(projectDir);
   ensureDir(assetsDir(canvasDir, "default"));
+  ensureDir(agentRequestsDir(canvasDir));
   ensureDir(path.join(canvasDir, "pages", "default"));
   if (!fs.existsSync(snapshotPath(canvasDir, "default"))) {
     writeJson(snapshotPath(canvasDir, "default"), {

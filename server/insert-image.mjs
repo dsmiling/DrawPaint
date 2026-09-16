@@ -35,7 +35,7 @@ function nextIndex(store, parentId) {
     .map((s) => s.index || "a0")
     .sort()
     .at(-1);
-  // crude fractional bump: append '0' style — good enough for MCP inserts
+  // Crude fractional bump; sufficient for local task inserts.
   return `${last}V`;
 }
 

@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:ui": "node --test tests/ui-studio.test.mjs tests/agent-threads.test.mjs tests/mockup-workflow.test.mjs tests/hybrid.test.mjs",
+    "test:ui": "node --test tests/ui-studio.test.mjs tests/agent-threads.test.mjs tests/codex-canvas.test.mjs tests/mockup-workflow.test.mjs tests/hybrid.test.mjs",
     "ui:job": "node scripts/ui-studio.mjs",
     "dev": "node ./server/dev.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "mcp": "node ./server/mcp.mjs",
+    "agent": "node scripts/ui-agent-bridge.mjs",
     "server": "node ./server/http.mjs"
   },
   "dependencies": {

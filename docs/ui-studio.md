@@ -124,15 +124,7 @@ UI 素材是 DrawPaint 的独立扩展模式，入口是顶部「UI 素材」，
 
 从已授权的当前 Codex 任务启动连接器：`node scripts/ui-agent-bridge.mjs`。连接器需与本地画布服务保持运行；退出或重启桌面应用后若显示未连接，可由当前 Agent 重新启动。此前已经授权的同一连接范围无需重复询问授权，执行环境仍会执行其正常的权限检查。
 
-以下 MCP / CLI 接口供 Agent 领取和回传任务：
-
-独立 MCP 工具：
-
-- `get_drawpaint_ui_jobs()`：列出 UI 任务。
-- `get_drawpaint_ui_request(jobId)`：读取完整提示词、目标参数和参考图绝对路径。
-- `complete_drawpaint_ui_job(jobId, imagePath)`：提交生图结果，触发服务器自动切图。
-
-更改 MCP 后需重新加载 DrawPaint MCP。未加载新工具时也可以使用 CLI（先运行 `npm run dev`）：
+Codex 独立任务通过本地 CLI 领取和回传任务（先运行 `npm run dev`）：
 
 ```powershell
 npm run ui:job -- list
@@ -142,7 +134,7 @@ npm run ui:job -- complete <jobId> "C:\absolute\ui-atlas.png"
 npm run ui:job -- fail <jobId> "简短失败原因"
 ```
 
-UI 模式不能调用普通 `insert_drawpaint_image`，也不应读写或清理普通 `pending-request.json`。
+UI 模式使用独立任务目录和 CLI，不应读写或清理普通 `pending-request.json`。
 
 ### 保留的可选 API 后端
 
@@ -229,7 +221,7 @@ node scripts/ui-studio.mjs claim <jobId>
 node scripts/ui-studio.mjs complete-layers <jobId> "C:/absolute/layers.json"
 ```
 
-也可使用 `complete_drawpaint_ui_layers(jobId, manifestPath)` MCP 工具。普通 `complete` / `complete_drawpaint_ui_job` 会拒绝分层任务。清单须包含 2–64 个图层，边界不能超出父组件，总面积不超过 1600 万像素。图片导入时映射到清单指定的 w/h，因此生成图应匹配该宽高比。
+普通 `complete` 会拒绝分层任务，分层结果必须使用 `complete-layers`。清单须包含 2–64 个图层，边界不能超出父组件，总面积不超过 1600 万像素。图片导入时映射到清单指定的 w/h，因此生成图应匹配该宽高比。
 
 取消任务不会自动触发再次生成；远端已接受的请求是否计费由服务决定。服务重启会将中断任务标记为失败，保留已生成原图。可从原图重新切图，无须重新生图。导出版本使用不同目录，旧 PNG/ZIP 不覆盖。
 

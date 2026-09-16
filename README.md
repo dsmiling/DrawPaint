@@ -1,51 +1,33 @@
 # DrawPaint
 
-DrawPaint 是一个面向 **Cursor** 的无限画布工具。它基于 [tldraw](https://github.com/tldraw/tldraw) 提供可视化画布，用于构思、标注、生成图片，以及根据标注图迭代图片。
+DrawPaint 是一个面向 **Codex 桌面版** 的本地无限画布。它基于 [tldraw](https://github.com/tldraw/tldraw)，用于构思、标注、生成图片，以及把完整游戏 UI 拆成可编辑、可导出的独立素材。
 
-画布以本地 Web 服务运行（浏览器或 Cursor Simple Browser），通过 **MCP + Skills** 与 Cursor Agent 联动；画布数据默认保存在当前项目的 `canvas/` 目录。
-
-对标 [Cowart](https://github.com/zhongerxin/cowart) 的核心工作流，但不依赖 Codex 原生 Widget：交互靠 Cursor deeplink 预填对话（需你按一次 Enter 发送）。
+画布把请求直接派发成 Codex 独立任务。普通画布和「UI 素材」共用同一个 Codex 连接器，不需要 Cursor deeplink、Cursor 命令或 Cursor Skills，也不需要额外填写生图 API Key。
 
 ## 功能
 
-- **独立 UI 素材模式**：顶部「UI 素材」进入专属画布，每次生图/细分新建独立 Agent 对话，执行后保留供检查，不自动归档，不继承上次对话历史。任务卡可检查方案、素材文件和画布回填链路。支持去背景、切片、组件复用、范围校正和 PNG + 清单 ZIP 导出。无需填写生图 API Key；自动派发需要本机连接器。详见 [UI 素材模式使用说明](docs/ui-studio.md)。
+- **AI 图片框**：按选中框的位置、尺寸和比例生成图片，并自动替换占位框。
+- **标注改图**：导出原图与箭头、文字的标注截图；Codex 生成干净新图并放到原图右侧，保留原图和标注。
+- **UI 素材工坊**：生成或导入完整界面，拆成独立图层，校正名称、类型、范围和层序，再回填画布。
+- **候选验收**：逐层对照原图，只重做不满意的组件，确认后再发布。
+- **项目交付**：导出 PNG + `manifest.json` ZIP、PSD 和 Unity PNG 包。
+- **本地保存**：画布、截图、任务和生成素材保存在项目的 `canvas/` 目录。
 
-- 在本地打开 tldraw 无限画布：拖拽、缩放、导入图片；数据持久化到项目 `canvas/`。
-- 创建 **AI 图片** 框：选择比例预设，输入 prompt、选择参考图，发送到 Cursor；Agent 按选中框的位置和尺寸生成图片并 **替换该框**。
-- 标注好图片后，可从画布提交标注截图（「按标注修改」），让 Agent 根据标注生成干净的新图并放到原图旁边；原图与标注不会被删除或移动。
-- 通过 deeplink / `/drawpaint` 命令把待办写入 `canvas/pending-request.json` 并预填 Cursor 对话。
-- 通过 DrawPaint MCP 读取选择状态、待办请求，并把生成图插回画布（替换 holder / 放在锚点右侧等）。
-
-> Phase A（AI 图片框 + 标注改图）已对齐 Cowart 主路径。AI HTML / AI Slides 等能力按路线图后续交付，见 `docs/superpowers/specs/`。
-
-## 本次新增：素材工坊
-
-素材工坊（UI Studio）为游戏 UI 素材提供独立的编辑和交付流程。测试工程已验证：完整界面可以作为效果图导入或生成，拆成可编辑的图层组，并在画布中保留原图、候选结果和最终回填结果。
-
-- **效果图拆解**：导入完整界面后，先由 Agent 生成组件方案；可在界面内校正组件范围、名称、语义类型、文字和层序，再确认生成独立素材。
-- **图层树编辑**：左侧树展示父子关系，可搜索、展开、隐藏、复制、删除、调整层级与可见性；画布上的移动、缩放和分组会保存为可导出的布局。
-- **高清与复用**：新素材默认按高清独立图层生成；已有组件符合外观、文字、比例和清晰度时会复用原 PNG，避免重复生成。
-- **候选验收与局部重做**：拆分结果先以“待检查”图层显示，可逐层比对原图、切换深浅底色、只重做不满意的组件；确认后才发布并回填。
-- **交付格式**：可导出 PNG + `manifest.json` ZIP、PSD，以及 Unity PNG 包和导入脚本。PSD/Unity 导出均携带图层层级、原生像素和画布布局。
-
-完整操作、Mask 边界参考、自动回填和验收约定请见 [UI 素材模式使用说明](docs/ui-studio.md)，可复现的验证步骤见 [测试说明](docs/ui-testing.md)。
+素材工坊的完整流程见 [UI 素材模式使用说明](docs/ui-studio.md)，验证范围见 [测试说明](docs/ui-testing.md)。
 
 ## 安装
 
-仓库地址：https://github.com/dsmiling/DrawPaint
+仓库地址：<https://github.com/dsmiling/DrawPaint>
 
-### 让 Cursor 协助安装
-
-把下面这段发给 Cursor Agent：
+可以直接让 Codex 在本机执行：
 
 ```text
-请从 https://github.com/dsmiling/DrawPaint.git 安装 DrawPaint。
-请 clone 到我指定的工作目录（若未指定则用当前工作区旁的 DrawPaint），
-进入目录后执行 npm install，确认 .cursor/mcp.json 与 .cursor/skills/ 存在，
-然后告诉我如何用 npm run dev 启动画布，以及是否需要在 Cursor 中确认启用 drawpaint MCP。
+请从 https://github.com/dsmiling/DrawPaint.git 安装 DrawPaint，
+进入项目后执行 npm install，并运行 npm run dev。
+然后在当前 Codex 桌面任务中运行 npm run agent，保持连接器运行。
 ```
 
-### 手动安装
+也可以手动安装：
 
 ```bash
 git clone https://github.com/dsmiling/DrawPaint.git
@@ -53,220 +35,147 @@ cd DrawPaint
 npm install
 ```
 
-确认项目内已有 Cursor 集成文件：
+## 启动
 
-```text
-.cursor/mcp.json                 # drawpaint MCP：node server/mcp.mjs
-.cursor/skills/drawpaint/        # 总调度 skill
-.cursor/skills/drawpaint-image-gen/
-.cursor/skills/drawpaint-image-edit/
-.cursor/commands/drawpaint.md    # /drawpaint 命令
-```
+DrawPaint 需要两个长期运行的进程。
 
-用 Cursor 打开该仓库（或把本仓库作为工作区根目录）。首次打开时，按 Cursor 提示启用 / 信任项目内的 MCP 与 Skills。
-
-### 启动画布
+### 1. 启动画布
 
 ```bash
 npm run dev
 ```
 
-浏览器或 Cursor Simple Browser 打开：
+打开：
 
-```text
-http://127.0.0.1:43217
+- 普通画布：<http://127.0.0.1:43217>
+- UI 素材工坊：<http://127.0.0.1:43217/?mode=ui>
+
+`npm run dev` 同时启动 Vite 前端和本地 API。默认端口分别为 `43217` 和 `43218`。
+
+### 2. 连接 Codex
+
+在打开本仓库的 **Codex 桌面任务**中运行：
+
+```bash
+npm run agent
 ```
 
-`npm run dev` 会同时拉起画布前端与本地 API（默认 API 端口 `43218`）。
+连接器必须从 Codex 桌面任务启动，因为它使用当前 Codex 会话提供的本地任务通道。连接成功后，画布提交的每个生成或拆分请求都会创建独立 Codex 任务；任务完成后保留，方便检查过程和结果。
 
-### 本地部署与长期运行
+如果页面提示“Agent 尚未连接”，回到 Codex 任务重新运行 `npm run agent`。关闭连接器会停止新的任务派发，但不会删除画布数据或已经生成的结果。
 
-DrawPaint 设计为本机或受控内网工具。推荐的部署方式是把仓库放在需要保存画布数据的机器上，以该目录作为运行目录：
+## 使用
+
+### 生成新图
+
+1. 点击顶部 **AI 图片**，创建并选中占位框。
+2. 选择比例，输入提示词，可选画布图片或本地图片作为参考。
+3. 点击发送。画布会保存请求并直接创建 Codex 独立任务。
+4. Codex 生成图片后自动替换占位框；打开着的画布会刷新结果。
+
+### 根据标注修改图片
+
+1. 用画笔、箭头或文字在图片附近标注修改要求。
+2. 选中底图，点击 **按标注修改**。
+3. 可补充提示词和参考图，然后提交。
+4. Codex 读取标注截图和引用素材，生成没有标注痕迹的新图，并放到原图右侧。
+
+### 制作 UI 素材
+
+1. 点击顶部 **UI 素材**，导入完整界面或创建生成任务。
+2. 审阅组件拆解方案，校正范围、名称、类型、文字和层级。
+3. 生成独立图层，并在候选验收中逐层检查或局部重做。
+4. 确认后回填画布，或导出 PSD、Unity 包及 PNG 清单。
+
+## Codex 工作流
+
+```mermaid
+flowchart LR
+    A[DrawPaint 画布] -->|保存请求| B[本地 API]
+    B -->|派发| C[Codex 连接器]
+    C -->|创建| D[独立 Codex 任务]
+    D -->|生成或编辑图片| E[DrawPaint CLI]
+    E -->|写入 snapshot 与素材| A
+```
+
+普通画布任务使用 `scripts/drawpaint.mjs` 回填结果；UI 素材任务使用 `scripts/ui-studio.mjs`。这些命令由新建的 Codex 任务自动执行，日常使用无需手动调用。
+
+## 本地部署
 
 ```bash
 git clone https://github.com/dsmiling/DrawPaint.git
 cd DrawPaint
 npm ci
-npm run build        # 验证生产构建
-npm run test:ui      # 验证 UI 素材工作流
-npm run dev          # 日常运行：前端 + API
+npm run build
+npm run test:ui
+npm run dev
 ```
 
-打开 `http://127.0.0.1:43217`；素材工坊直接使用 `http://127.0.0.1:43217/?mode=ui`。首次使用 UI Studio 时，还需在 Codex 桌面任务中执行以下连接器，并保持它运行，页面状态才会显示「Agent 已连接」：
+随后在 Codex 桌面任务中启动 `npm run agent`。
 
-```bash
-node scripts/ui-agent-bridge.mjs
-```
-
-画布、任务和本地连接信息会写入 `canvas/`。如需把运行数据放到另一块磁盘，在启动前设置 `DRAWPAINT_PROJECT_DIR` 为该项目目录；该目录应当对运行账号可写。示例（PowerShell）：
+运行数据默认写入 `canvas/`。若要把数据放在其他目录，启动画布和连接器前设置相同的 `DRAWPAINT_PROJECT_DIR`：
 
 ```powershell
 $env:DRAWPAINT_PROJECT_DIR = 'D:\DrawPaintData'
 npm run dev
 ```
 
-生产构建由 `npm run build` 输出到 `dist/`，但 UI Studio 仍需要本地 API、画布数据目录以及（需要 Agent 自动派发时）桌面连接器。因此仓库当前提供的正式运行入口仍是 `npm run dev`。服务默认仅绑定 `127.0.0.1`；若要供局域网或公网访问，需要自行配置反向代理、身份认证和 HTTPS，并将 `/api` 转发给本机 API 端口 `43218`。不要直接把开发服务暴露到公网。
+另一个 Codex 桌面任务也设置同一变量后运行：
+
+```powershell
+$env:DRAWPAINT_PROJECT_DIR = 'D:\DrawPaintData'
+npm run agent
+```
+
+服务默认只绑定 `127.0.0.1`。如需供内网使用，应增加反向代理、身份认证和 HTTPS，并把 `/api` 转发到 API 端口 `43218`。
 
 ## 更新
-
-在项目根目录：
 
 ```bash
 git pull
 npm install
+npm run build
+npm run test:ui
 ```
 
-然后重新执行 `npm run dev`。若 MCP / Skills 有变更，建议新开一条 Cursor 对话，确保新技能与工具被完整加载。
-
-画布运行时数据（截图、snapshot、pending 文件等）默认被 `.gitignore` 忽略，更新代码不会覆盖你本机已生成的 `canvas/` 内容；换机器时请自行备份需要保留的画布资源。
-
-## 使用
-
-### 打开画布
-
-1. 在项目根目录运行 `npm run dev`。
-2. 打开 `http://127.0.0.1:43217`。
-3. 在 Cursor 中也可说：「打开 DrawPaint 画布」——Agent 应提示你启动服务并给出 URL（MCP：`open_drawpaint_canvas`）。
-
-画布数据默认路径：
-
-```text
-canvas/pages/default/snapshot.json
-canvas/pages/default/assets/
-canvas/selection.json
-canvas/pending-request.json
-canvas/pending-inserts.json
-```
-
-### 生成新图（AI 图片框）
-
-1. 打开 DrawPaint 画布。
-2. 顶部工具栏点击 **AI 图片**，创建并选中一个 AI 图片框（可选手持比例：1:1、3:2、2:3、4:3、3:4、16:9、9:16 等）。
-3. 在生成面板中输入 prompt，可选一张或多张参考图（画布内选取或上传），然后发送到 Cursor。
-
-DrawPaint 会：
-
-1. 将参考图保存到当前页 `assets/`；
-2. 写入 `canvas/pending-request.json`（类型 `ai_image_generate`，含 `anchorShapeId`、目标宽高与宽高比等）；
-3. 打开 Cursor deeplink，预填提示词。
-
-**注意：** Cursor 官方 deeplink **不会自动发送**，你需要在对话里按一次 **Enter**。这是 Cursor 安全限制，网页画布无法绕过。
-
-Agent 处理时会按选中框的位置和比例生成图片，并用 MCP `insert_drawpaint_image`（`replaceAiImageHolder: true`）把 AI 图片框替换成普通图片形状。
-
-也可在 Cursor 聊天输入 `/drawpaint`，触发同样的「处理待办」流程。
-
-### 根据标注图生成新图
-
-1. 在画布中对图片做标注（画笔 / 箭头 / 文字；推荐使用专用 **标注** 工具）。
-2. 选中被标注的图片，点击 **按标注修改**（附近的箭头/文字会自动纳入）。
-3. 可选填写右侧 Prompt，再发送到 Cursor / Agent。
-
-DrawPaint 会导出包含原图、箭头和标注文字的截图，写入 pending（类型 `annotate_edit`），并预填 Cursor 对话。
-
-Agent 会以标注截图为权威说明，生成去掉标注痕迹的干净新图，并用 `insert_drawpaint_image` 放到原图右侧（`placement: "right"`）。**原图和标注不会被删除或移动。**
-
-你也可以在 Cursor 中直接说：「请处理 DrawPaint 待办请求」。
-
-### 推荐完整测试路径
-
-1. `npm run dev`，打开画布。
-2. 拖一张图片进画布，用箭头/文字标注要改的地方。
-3. 选中底图，填写 Prompt（可选）。
-4. 点 **按标注修改 → Agent**（或等价发送按钮）。
-5. 回到 Cursor 对话：确认预填内容后按 Enter，或手动说「请处理 DrawPaint 待办请求」。
-6. Agent 读截图与 prompt，生成图片后通过 `insert_drawpaint_image` 插回；保持画布标签页打开，便于 pending-inserts / snapshot 刷新生效。
-
-## 技能与 MCP
-
-### Skills
-
-| Skill | 作用 |
-|-------|------|
-| `drawpaint` | 总入口：打开画布、读 pending、按类型分流、清理待办 |
-| `drawpaint-image-gen` | 按 AI 图片框尺寸生图并替换 holder；无框时也可独立插入 |
-| `drawpaint-image-edit` | 根据标注截图生成修订图，放到源图右侧 |
-
-### MCP 工具（`drawpaint`）
-
-| 工具 | 作用 |
-|------|------|
-| `open_drawpaint_canvas` | 返回画布 URL / 健康状态 |
-| `get_drawpaint_pending_request` | 读取画布写入的待办 |
-| `get_drawpaint_selection` | 当前选择元数据（含是否 AI 图片 holder） |
-| `insert_drawpaint_image` | 插入 / 替换 holder / 放到锚点旁（Cowart 对齐参数） |
-| `clear_drawpaint_pending_request` | 处理完成后清理待办 |
-| `get_drawpaint_snapshot_info` | 存储路径与状态 |
-
-`insert_drawpaint_image` 常用参数：`imagePath`、`anchorShapeId`、`placement`、`margin`、`matchAnchor`、`replaceAiImageHolder`、`displayWidth` / `displayHeight`、`fileName` 等。
-
-配置见 `.cursor/mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "drawpaint": {
-      "command": "node",
-      "args": ["server/mcp.mjs"]
-    }
-  }
-}
-```
+更新后重启 `npm run dev` 和 `npm run agent`。`canvas/` 中的运行数据已被 Git 忽略，不会被更新覆盖；迁移设备时请单独备份。
 
 ## 本地开发
 
 ```bash
-npm install
-npm run dev      # 画布 + API（推荐日常使用）
-npm run build
-npm run preview
-npm run server   # 仅 HTTP API
-npm run mcp      # 仅 MCP 进程（一般由 Cursor 拉起）
+npm run dev       # 画布前端 + API
+npm run agent     # Codex 桌面连接器，须从 Codex 任务启动
+npm run build     # 生产构建
+npm run test:ui   # 工作流测试
+npm run preview   # 预览生产构建
+npm run server    # 仅启动本地 API
 ```
-
-### 端口
-
-| 服务 | 默认端口 |
-|------|----------|
-| 画布 Web | `43217` |
-| API | `43218` |
 
 ### 环境变量
 
 | 变量 | 含义 |
-|------|------|
-| `DRAWPAINT_PORT` | 画布 Web 端口 |
-| `DRAWPAINT_API_PORT` | API 端口 |
-| `DRAWPAINT_PROJECT_DIR` | 项目根目录（影响 `canvas/` 位置） |
+| --- | --- |
+| `DRAWPAINT_PORT` | 画布 Web 端口，默认 `43217` |
+| `DRAWPAINT_API_PORT` | API 端口，默认 `43218` |
+| `DRAWPAINT_PROJECT_DIR` | 画布数据所在项目目录 |
 
 ### 目录结构
 
 ```text
 DrawPaint/
-├── src/                      # 画布前端（React + tldraw）
-├── server/
-│   ├── dev.mjs               # Vite + API 一键启动
-│   ├── http.mjs              # REST API
-│   ├── mcp.mjs               # Cursor MCP
-│   ├── insert-image.mjs      # 插图 / 替换 holder
-│   └── storage.mjs           # canvas 读写
-├── canvas/                   # 运行时数据（默认 gitignore 大部分内容）
-├── .cursor/
-│   ├── mcp.json
-│   ├── commands/drawpaint.md
-│   └── skills/
-├── scripts/                  # 维护用脚本（如 GitHub env 弹窗配置）
-└── docs/superpowers/         # 设计与计划文档
+├── src/                         # React + tldraw 前端
+├── server/                      # 本地 API、存储和 UI 素材工作流
+├── scripts/
+│   ├── ui-agent-bridge.mjs      # Codex 桌面连接器
+│   ├── drawpaint.mjs            # 普通画布任务回填 CLI
+│   └── ui-studio.mjs            # UI 素材任务 CLI
+├── docs/                        # 使用与测试说明
+└── canvas/                      # 本地运行数据（大部分已 gitignore）
 ```
 
-## 限制（MVP）
+## 当前边界
 
-- 不是 Cursor 原生 Webview 内嵌，需浏览器或 Simple Browser。
-- Agent 不会因 deeplink 自动执行；需你在对话里按 Enter，或手动触发「处理待办」。
-- 生图本身依赖你当前 Cursor 可用的图片模型 / 工具；本仓库负责画布、待办链路与插回。
-- AI HTML、AI Slides 等 Cowart 进阶能力尚未作为默认交付（见设计文档路线图）。
-
-## 致谢
-
-- 画布能力基于 [tldraw/tldraw](https://github.com/tldraw/tldraw)。
-- 产品工作流对标 [zhongerxin/cowart](https://github.com/zhongerxin/cowart)。
+- Codex 桌面应用和连接器需要在同一台机器运行。
+- 每个请求会创建独立 Codex 任务，方便隔离上下文和检查结果。
+- 连接器进程退出后，新的请求无法派发；重启连接器即可恢复。
+- 图像生成结果仍需人工检查，特别是文字、透明边缘、字体和图层复原。

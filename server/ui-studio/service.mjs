@@ -260,7 +260,7 @@ export class UiStudioService {
           : job.splitOptions?.generationMode === "sheet"
           ? `Follow generationPrompt to generate missing components together in sheets, preserve native pixels and prioritize existing assets for reuse. Return sheets and layers, with each layer referencing sheetIndex/sheetRect or reuse. Run node scripts/ui-studio.mjs complete-layers ${id} <absolute-JSON-path>.`
           : `Inspect referencePaths and potential matching images in reusableComponents first. Reference matching layers using reuse:{jobId,revision,sliceId} and generate PNGs only for missing layers. Save the manifest as JSON and run node scripts/ui-studio.mjs complete-layers ${id} <absolute-manifest-path>. Do not submit an atlas; report failure reasons using fail if further decomposition is impossible.`
-        : `This is independent UI asset mode. Follow generationPrompt to generate ${job.workflow === "mockup" ? "a complete interface mockup, preserving the background and layout" : "an atlas"}, then return it using complete_drawpaint_ui_job(jobId="${id}", imagePath=absolute-final-image-path). Do not use ordinary insert_drawpaint_image or clear ordinary pending requests.` };
+        : `This is independent UI asset mode. Follow generationPrompt to generate ${job.workflow === "mockup" ? "a complete interface mockup, preserving the background and layout" : "an atlas"}, then run node scripts/ui-studio.mjs complete ${id} <absolute-image-path>. Do not modify ordinary canvas pending requests.` };
   }
   reusableComponents(job) {
     const seen = new Set(), components = [];

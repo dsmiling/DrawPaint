@@ -29,6 +29,7 @@ export function createAgentConnection(root) {
       catch { return { connected: false }; }
     },
     async dispatch(jobId) { return request("dispatch", { jobId }, 45000); },
+    async dispatchCanvas(requestId) { return request("dispatch-canvas", { requestId }, 45000); },
     async openThread(jobId) { return request("open-thread", { jobId }, 15000); },
   };
 }

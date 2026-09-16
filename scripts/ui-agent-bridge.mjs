@@ -7,7 +7,7 @@ import http from "node:http";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { initCanvasLayout, resolveProjectDir } from "../server/storage.mjs";
+import { agentRequestPath, initCanvasLayout, readJson, resolveProjectDir } from "../server/storage.mjs";
 import { uiRequest } from "../server/ui-studio/client.mjs";
 import { AgentThreads } from "../server/ui-studio/agent-threads.mjs";
 
@@ -43,6 +43,12 @@ async function call(name, args) {
   return result;
 }
 function taskMessageFor(job) {
+  if (job.kind === "canvas") return [
+    `Execute ordinary DrawPaint canvas request ${job.id}.`,
+    `Run node scripts/drawpaint.mjs request ${job.id} and inspect every screenshot and reference path returned.`,
+    "Use the built-in image generation/editing tool to produce the requested final bitmap. For annotation edits, the screenshot defines WHERE and elementRefs/referencePaths define WHAT; return a clean image without annotation marks.",
+    `Submit exactly once with node scripts/drawpaint.mjs complete ${job.id} <absolute-image-path>. On failure run node scripts/drawpaint.mjs fail ${job.id} \"brief reason\".`,
+  ].join("\n");
   if(job.reviewBeforePublish && job.operation === "decompose") return [
     `Execute candidate generation for job ${job.id}, attempt ${job.attempt || 0}. First run node scripts/ui-studio.mjs claim ${job.id}; stop if claiming fails.`,
     "Follow the returned candidate review contract. Generate only requested retryRegionIds when present; the server retains other layers. Submit candidates despite visual differences or insufficient resolution, so the user can inspect them. Do not reject the entire batch for minor style differences. Never approve, publish or archive on behalf of the user.",
@@ -93,11 +99,15 @@ function taskMessageFor(job) {
     "Use the current Agent's built-in image_gen tool to generate the final UI atlas according to generationPrompt. Inspect reference images first, if any. Do not use an image generation API or substitute code drawing for actual image generation. No API key is needed.",
     `After generation run node scripts/ui-studio.mjs complete ${job.id} "absolute-generated-image-path".`,
     `After slicing, run node scripts/ui-studio.mjs request ${job.id}. Inspect atlasFile and the slice images. Identify each component's name and layerType (button/text/icon/texture/background/border/decoration/component), include text for text content, and leave unconfirmed fonts empty. Save {revision,metadataRevision:0,presetName,source:"ai",slices:[{id,name,layerType,text?}]} as JSON, then run node scripts/ui-studio.mjs metadata ${job.id} <absolute-JSON-path>. Do not use only numbered names such as ui_001 as final classifications.`,
-    "The server automatically returns the result, removes the background, slices assets and places them on the independent UI canvas. Do not call ordinary insert_drawpaint_image or modify ordinary canvas pending requests.",
+    "The server automatically returns the result, removes the background, slices assets and places them on the independent UI canvas. Do not modify ordinary canvas pending requests.",
     `If the built-in image generation tool is unavailable or fails, run node scripts/ui-studio.mjs fail ${job.id} "brief failure reason" and report it accurately. Do not repeatedly retry or silently switch to an API.`,
   ].join("\n");
 }
 function messageFor(job) {
+  if (job.kind === "canvas") {
+    const command = `node "${path.join(project, "scripts", "drawpaint.mjs")}"`;
+    return taskMessageFor(job).replaceAll("node scripts/drawpaint.mjs", command);
+  }
   const command = `node "${path.join(project, "scripts", "ui-studio.mjs")}"`;
   return [
     "This is an independent asset job submitted by the user from DrawPaint. Execute only this job; do not read or continue other conversation histories or create additional conversations. The working directory is dedicated to this output. Access existing references and components only through paths explicitly provided for this request. Write model-facing instructions and image-generation prompts in English. Preserve exact user-requested in-image text in its original language; user-facing summaries and UI labels should remain Chinese.",
@@ -106,7 +116,13 @@ function messageFor(job) {
     `After submitting results, wait for server processing to finish, then run ${command} diagnose ${job.id}. Report the job ID, actual stage/status, generated layer count, missing files, and saved-canvas present/expected count in Chinese. For plan jobs, analysis completion is not image completion; report continuationId and any downstream failure. ready only means server assets are prepared; only a complete saved-canvas count is evidence of saved delivery, not visual acceptance. If the browser has not saved/imported yet, explicitly say so and do not regenerate. Atlas jobs must also complete classification. Keep this conversation open for the user's inspection: never archive it or call set_thread_archived. If execution failed or needs permission/input, report the actual error instead of saying the split completed.`,
   ].join("\n\n");
 }
-const agentThreads = new AgentThreads(root, { call, request: uiRequest, ownerThreadId: threadId, messageFor });
+async function requestForThread(route, record) {
+  if (record?.kind !== "canvas") return uiRequest(route);
+  const request = readJson(agentRequestPath(initCanvasLayout(project), record.jobId), null);
+  if (!request || request.status === "completed") return { status: "ready" };
+  return { status: request.status === "failed" ? "failed" : "dispatched", error: request.error || null };
+}
+const agentThreads = new AgentThreads(root, { call, request: requestForThread, ownerThreadId: threadId, messageFor });
 async function monitorStatus() {
   if (!connected) return;
   try { await agentThreads.poll(); }
@@ -124,11 +140,12 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     if (req.method === "GET" && req.url === "/health") { json(res, 200, { connected, dispatchMode: "new-thread", autoArchive: false }); return; }
-    if (req.method !== "POST" || !["/dispatch","/open-thread"].includes(req.url)) { json(res, 404, { error: "Not found" }); return; }
+    if (req.method !== "POST" || !["/dispatch","/dispatch-canvas","/open-thread"].includes(req.url)) { json(res, 404, { error: "Not found" }); return; }
     if (!connected) throw new Error("Agent 已断开，请重新连接。");
     let size = 0; const chunks = [];
     for await (const chunk of req) { size += chunk.length; if (size > 4096) throw new Error("请求过大"); chunks.push(chunk); }
-    const { jobId } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const jobId = input.jobId || input.requestId;
     if (!/^[a-f0-9-]{36}$/.test(jobId || "")) throw new Error("Invalid UI task ID");
     if (req.url === "/open-thread") {
       const record=[...agentThreads.jobs.values()].filter(r=>r.jobId===jobId).at(-1);
@@ -138,6 +155,12 @@ const server = http.createServer(async (req, res) => {
       if(record.state === "archived") {record.state="retained";record.restoredAt=new Date().toISOString();agentThreads.save();}
       await call("navigate_to_codex_page", {threadId:record.threadId});
       json(res,200,{opened:true});return;
+    }
+    if (req.url === "/dispatch-canvas") {
+      const request = readJson(agentRequestPath(initCanvasLayout(project), jobId), null);
+      if (!request || request.id !== jobId) throw new Error("普通画布待办不存在或已变化");
+      const result = await agentThreads.dispatch({ ...request, id: jobId, kind: "canvas", operation: "canvas" });
+      json(res, 200, result); return;
     }
     const job = await uiRequest(`jobs/${jobId}/agent-request`);
     if (job.provider !== "agent" || job.status !== "agent_dispatching") throw new Error("任务当前不可提交。");

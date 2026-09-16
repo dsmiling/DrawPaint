@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createUiStudioHandler } from "./ui-studio/http.mjs";
+import { createAgentConnection } from "./ui-studio/agent-connection.mjs";
 import {
   ROOT,
+  agentRequestPath,
   assetsDir,
   initCanvasLayout,
   pendingInsertsPath,
@@ -21,6 +23,7 @@ const PORT = Number(process.env.DRAWPAINT_API_PORT || 43218);
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 const CANVAS_DIR = initCanvasLayout(PROJECT_DIR);
 const handleUiStudio = createUiStudioHandler(CANVAS_DIR);
+const agentConnection = createAgentConnection(path.join(CANVAS_DIR, "ui-studio"));
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
@@ -176,6 +179,7 @@ const server = http.createServer(async (req, res) => {
         status: "pending",
       };
       writeJson(pendingRequestPath(CANVAS_DIR), request);
+      writeJson(agentRequestPath(CANVAS_DIR, request.id), request);
       return sendJson(res, 200, { ok: true, request });
     }
 
@@ -183,6 +187,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         request: readJson(pendingRequestPath(CANVAS_DIR), null),
       });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/agent-request/dispatch") {
+      const body = await readBody(req);
+      const request = readJson(agentRequestPath(CANVAS_DIR, body.requestId), null);
+      if (!request || request.id !== body.requestId) throw new Error("待办请求不存在或已变化");
+      const dispatched = await agentConnection.dispatchCanvas(request.id);
+      const next = { ...request, status: "dispatched", dispatch: dispatched };
+      writeJson(agentRequestPath(CANVAS_DIR, request.id), next);
+      const pending = readJson(pendingRequestPath(CANVAS_DIR), null);
+      if (pending?.id === request.id) writeJson(pendingRequestPath(CANVAS_DIR), next);
+      return sendJson(res, 200, { ok: true, ...dispatched });
     }
 
     if (req.method === "POST" && url.pathname === "/api/agent-request/clear") {

@@ -37,6 +37,13 @@ export function submitAgentRequest(payload) {
   });
 }
 
+export function dispatchAgentRequest(requestId) {
+  return api("/api/agent-request/dispatch", {
+    method: "POST",
+    body: JSON.stringify({ requestId }),
+  });
+}
+
 export function getPendingInserts() {
   return api("/api/pending-inserts");
 }

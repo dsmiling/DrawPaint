@@ -7,6 +7,7 @@ canvas/pages/*/snapshot.json
 canvas/selection.json
 canvas/pending-request.json
 canvas/pending-inserts.json
+canvas/requests/
 !canvas/.gitkeep
 
 # Local secrets for git/gh helpers

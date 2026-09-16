@@ -62,12 +62,9 @@ export function buildAnnotationEditPrompt({
     "## Annotation / element references (WHAT to place)",
     ...refLines,
     "",
-    "Insert using insert_drawpaint_image:",
-    `- anchorShapeId: "${imageShapeId}"`,
-    "- placement: right, margin: 40, matchAnchor: true",
-    "- replaceAiImageHolder: false",
+    "Return the clean final bitmap through the DrawPaint Codex task.",
+    `Use source image ${imageShapeId} as the anchor and place the result to its right with a 40-unit margin at the same display size.`,
     "Do not delete or move the original image or annotations; place the clean new image to the right of the original.",
-    "Finally, call clear_drawpaint_pending_request.",
   ].join("\n");
 }
 

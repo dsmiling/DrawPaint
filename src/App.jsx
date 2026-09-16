@@ -16,6 +16,7 @@ import {
   saveSelection,
   saveSnapshot,
   submitAgentRequest,
+  dispatchAgentRequest,
   uploadAsset,
 } from "./api.js";
 import {
@@ -46,43 +47,6 @@ const tldrawComponents = {
   ImageToolbar: DrawpaintImageToolbar,
 };
 
-/** Build a Cursor prompt deeplink (opens chat with prefilled text; user must confirm send). */
-function buildCursorPromptDeeplink(promptText) {
-  const maxEncoded = 7500;
-  let text = promptText.trim();
-  let encoded = encodeURIComponent(text);
-  if (encoded.length > maxEncoded) {
-    text = [
-      "Process the pending DrawPaint request.",
-      "Read the complete request from canvas/pending-request.json using MCP get_drawpaint_pending_request, then execute it.",
-      "",
-      "Summary:",
-      promptText.slice(0, 1200),
-      "…",
-    ].join("\n");
-    encoded = encodeURIComponent(text);
-  }
-  return `cursor://anysphere.cursor-deeplink/prompt?text=${encoded}`;
-}
-
-function openCursorChat(promptText) {
-  const href = buildCursorPromptDeeplink(promptText);
-  // Protocol handler works best via an anchor click (esp. inside Simple Browser).
-  const a = document.createElement("a");
-  a.href = href;
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  return href;
-}
-
-const CHAT_BOOT_PROMPT = `Process the pending DrawPaint request now. Write model-facing instructions and image-generation prompts in English. Preserve exact requested in-image text in its original language; keep user-facing summaries in Chinese:
-1. Call get_drawpaint_pending_request (or read canvas/pending-request.json). Read the complete JSON, not just screenshot paths in the conversation.
-2. If type is ai_image_generate, follow the drawpaint-image-gen skill. Generate for targetWidth/Height, then replace the AI image holder using insert_drawpaint_image with anchorShapeId and replaceAiImageHolder: true.
-3. If type is annotate_edit, follow the drawpaint-image-edit skill. Inspect the annotation screenshot (WHERE) and open reference images in elementRefs / referencePaths (WHAT). Generate a clean new image and call insert_drawpaint_image with anchorShapeId set to the source image, placement: right, margin: 40, matchAnchor: true, replaceAiImageHolder: false.
-4. clear_drawpaint_pending_request`;
-
 function buildAiImageHolderPrompt({ prompt, holder, references }) {
   const refLines =
     references.length === 0
@@ -95,7 +59,7 @@ function buildAiImageHolderPrompt({ prompt, holder, references }) {
         ];
 
   return [
-    "Generate a final bitmap for the DrawPaint AI image holder and replace the holder using MCP.",
+    "Generate a final bitmap for the DrawPaint AI image holder and return it through the DrawPaint Codex task.",
     "",
     "## User prompt",
     prompt.trim() || "(none)",
@@ -105,7 +69,7 @@ function buildAiImageHolderPrompt({ prompt, holder, references }) {
     "Compose the final bitmap for this ratio so it fits the slot without cropping or stretching.",
     "",
     `anchorShapeId: ${holder.anchorShapeId}`,
-    "insert_drawpaint_image: set replaceAiImageHolder true (default) with this anchorShapeId.",
+    "Replace this holder with the generated image when completing the DrawPaint task.",
     "",
     ...refLines,
   ].join("\n");
@@ -206,7 +170,7 @@ function buildGeneratePrompt({ prompt, selection }) {
     "## Current selection",
     selected || "(no shapes selected)",
     "",
-    "When complete, insert the result using insert_drawpaint_image, then call clear_drawpaint_pending_request.",
+    "When complete, return the final bitmap through the DrawPaint Codex task so it can be inserted into the canvas.",
   ].join("\n");
 }
 
@@ -413,7 +377,7 @@ function HolderGenerateDock({
         </button>
       </div>
       <div className="dp-dock__meta">
-        {lastRequestId ? `已唤起对话 ${lastRequestId.slice(0, 8)}…（请在 Cursor 按 Enter 发送）` : "回车或点发送 → Cursor"}
+        {lastRequestId ? `Codex 任务 ${lastRequestId.slice(0, 8)}… 已派发` : "回车或点发送 → Codex"}
       </div>
     </div>
   );
@@ -802,7 +766,7 @@ export default function App() {
     [persistSelection, refreshDockPosition, scheduleSave],
   );
 
-  // Poll pending inserts from MCP / Agent
+  // Poll image inserts completed by Codex tasks.
   useEffect(() => {
     if (!ready) return undefined;
     let cancelled = false;
@@ -901,19 +865,9 @@ export default function App() {
         referencePaths: references.map((r) => r.relativePath),
       });
       setLastRequestId(request.id);
-      const launchPrompt = [
-        CHAT_BOOT_PROMPT,
-        "",
-        `Request ID: ${request.id}`,
-        holder ? `AI image holder: ${holder.anchorShapeId}` : "",
-        "",
-        fullPrompt,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      openCursorChat(launchPrompt);
-      showToast("已打开 Cursor；请在对话里按 Enter 发送");
-      setStatus(`已唤起对话 ${request.id.slice(0, 8)}…`);
+      await dispatchAgentRequest(request.id);
+      showToast("已派发到 Codex 独立任务");
+      setStatus(`Codex 任务 ${request.id.slice(0, 8)}… 已派发`);
       for (const item of referenceItems) {
         if (item.url) URL.revokeObjectURL(item.url);
       }
@@ -966,37 +920,11 @@ export default function App() {
         });
         setLastRequestId(request.id);
         const refCount = prepared.elementRefs?.length || 0;
-        const refPathLines =
-          refCount === 0
-            ? ["Element reference images: 0 (edit using the screenshot only)"]
-            : [
-                `Element reference images: ${refCount} (open these files to see WHAT to place)`,
-                ...prepared.elementRefs.map((r, i) => {
-                  const p =
-                    request.elementRefs?.[i]?.absolutePath ||
-                    request.elementRefs?.[i]?.filePath ||
-                    r.filePath ||
-                    r.relativePath;
-                  const where = r.arrowText ? ` ←「${r.arrowText}」` : "";
-                  return `  ${i + 1}. ${p}${where}`;
-                }),
-              ];
-        const launchPrompt = [
-          CHAT_BOOT_PROMPT,
-          "",
-          `Request ID: ${request.id}`,
-          `Source image shape: ${imageShapeId}`,
-          `Nearby annotations: ${prepared.annotationCount}`,
-          ...refPathLines,
-          `Annotation screenshot: ${request.screenshotAbsolutePath || prepared.screenshotRelativePath}`,
-          "",
-          prepared.fullPrompt,
-        ].join("\n");
-        openCursorChat(launchPrompt);
+        await dispatchAgentRequest(request.id);
         showToast(
-          `已提交（标注 ${prepared.annotationCount} · 参考图 ${refCount}）· 请在 Cursor 按 Enter`,
+          `已派发到 Codex（标注 ${prepared.annotationCount} · 参考图 ${refCount}）`,
         );
-        setStatus(`已唤起对话 ${request.id.slice(0, 8)}…`);
+        setStatus(`Codex 任务 ${request.id.slice(0, 8)}… 已派发`);
       } catch (error) {
         console.error("[DrawPaint] annotation edit:", error);
         showToast(`失败: ${error.message || String(error)}`);

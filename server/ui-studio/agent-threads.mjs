@@ -35,13 +35,13 @@ export class AgentThreads {
   async dispatch(job) {
     const recordKey=job.attempt ? `${job.id}/retry-${job.attempt}` : job.id;
     if (this.jobs.has(recordKey)) throw new Error("该任务已有独立对话记录，不能重复创建；请先确认原任务结果");
-    const record = { jobId: job.id, recordKey,attempt:job.attempt || 0,state: "creating", createdAt: this.now() };
+    const record = { jobId: job.id, recordKey, kind: job.kind || "ui", attempt:job.attempt || 0,state: "creating", createdAt: this.now() };
     this.jobs.set(recordKey, record);
     this.save(); // Persist BEFORE the non-idempotent create call, including across restarts.
     try {
       const result = toolPayload(await this.call("create_thread", {
-        title: `DrawPaint · ${job.operation === "plan" ? "拆解方案" : job.operation === "decompose" ? "AI 细分" : job.operation === "classify" ? "组件分类" : job.workflow === "mockup" ? "界面效果图" : "UI 生图"} · ${job.id.slice(0, 8)}${job.attempt ? ` · 重做 ${job.attempt}` : ""}`,
-        target: { type: "projectless", directoryName: `drawpaint-ui-${job.id}${job.attempt ? `-retry-${job.attempt}` : ""}` },
+        title: `DrawPaint · ${job.kind === "canvas" ? "画布生图" : job.operation === "plan" ? "拆解方案" : job.operation === "decompose" ? "AI 细分" : job.operation === "classify" ? "组件分类" : job.workflow === "mockup" ? "界面效果图" : "UI 生图"} · ${job.id.slice(0, 8)}${job.attempt ? ` · 重做 ${job.attempt}` : ""}`,
+        target: { type: "projectless", directoryName: `drawpaint-${job.kind === "canvas" ? "canvas" : "ui"}-${job.id}${job.attempt ? `-retry-${job.attempt}` : ""}` },
         prompt: this.messageFor(job),
       }));
       if (typeof result.threadId !== "string" || !result.threadId || result.threadId === this.ownerThreadId) throw new Error("未取得新对话 ID，请检查 Codex，不能自动重建");
@@ -72,7 +72,7 @@ export class AgentThreads {
           if (snapshot.cursor) this.cursor.set(record.threadId, snapshot.cursor);
           if (!finishedTurns.has(snapshot.latestTurn?.status) || snapshot.thread?.status?.type === "active") continue;
           try {
-            const job = await this.request(`jobs/${record.jobId}`);
+            const job = await this.request(`jobs/${record.jobId}`, record);
             Object.assign(record, { turnStatus: snapshot.latestTurn.status, outcome: job.status,
               error: job.error || null,
               attention: !finishedJobs.has(job.status) ? "执行对话已结束，素材任务尚未完成，请检查回填。" : null });
