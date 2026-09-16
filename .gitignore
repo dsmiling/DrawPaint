@@ -16,3 +16,6 @@ scripts/git-env.local.ps1
 canvas/ui-studio/
 .cache/
 tmp/
+
+# Local source artwork, not part of the DrawPaint plugin
+FlyToMoon/
