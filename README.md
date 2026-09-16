@@ -18,6 +18,18 @@ DrawPaint 是一个面向 **Cursor** 的无限画布工具。它基于 [tldraw](
 
 > Phase A（AI 图片框 + 标注改图）已对齐 Cowart 主路径。AI HTML / AI Slides 等能力按路线图后续交付，见 `docs/superpowers/specs/`。
 
+## 本次新增：素材工坊
+
+素材工坊（UI Studio）为游戏 UI 素材提供独立的编辑和交付流程。测试工程已验证：完整界面可以作为效果图导入或生成，拆成可编辑的图层组，并在画布中保留原图、候选结果和最终回填结果。
+
+- **效果图拆解**：导入完整界面后，先由 Agent 生成组件方案；可在界面内校正组件范围、名称、语义类型、文字和层序，再确认生成独立素材。
+- **图层树编辑**：左侧树展示父子关系，可搜索、展开、隐藏、复制、删除、调整层级与可见性；画布上的移动、缩放和分组会保存为可导出的布局。
+- **高清与复用**：新素材默认按高清独立图层生成；已有组件符合外观、文字、比例和清晰度时会复用原 PNG，避免重复生成。
+- **候选验收与局部重做**：拆分结果先以“待检查”图层显示，可逐层比对原图、切换深浅底色、只重做不满意的组件；确认后才发布并回填。
+- **交付格式**：可导出 PNG + `manifest.json` ZIP、PSD，以及 Unity PNG 包和导入脚本。PSD/Unity 导出均携带图层层级、原生像素和画布布局。
+
+完整操作、Mask 边界参考、自动回填和验收约定请见 [UI 素材模式使用说明](docs/ui-studio.md)，可复现的验证步骤见 [测试说明](docs/ui-testing.md)。
+
 ## 安装
 
 仓库地址：https://github.com/dsmiling/DrawPaint
@@ -66,6 +78,34 @@ http://127.0.0.1:43217
 ```
 
 `npm run dev` 会同时拉起画布前端与本地 API（默认 API 端口 `43218`）。
+
+### 本地部署与长期运行
+
+DrawPaint 设计为本机或受控内网工具。推荐的部署方式是把仓库放在需要保存画布数据的机器上，以该目录作为运行目录：
+
+```bash
+git clone https://github.com/dsmiling/DrawPaint.git
+cd DrawPaint
+npm ci
+npm run build        # 验证生产构建
+npm run test:ui      # 验证 UI 素材工作流
+npm run dev          # 日常运行：前端 + API
+```
+
+打开 `http://127.0.0.1:43217`；素材工坊直接使用 `http://127.0.0.1:43217/?mode=ui`。首次使用 UI Studio 时，还需在 Codex 桌面任务中执行以下连接器，并保持它运行，页面状态才会显示「Agent 已连接」：
+
+```bash
+node scripts/ui-agent-bridge.mjs
+```
+
+画布、任务和本地连接信息会写入 `canvas/`。如需把运行数据放到另一块磁盘，在启动前设置 `DRAWPAINT_PROJECT_DIR` 为该项目目录；该目录应当对运行账号可写。示例（PowerShell）：
+
+```powershell
+$env:DRAWPAINT_PROJECT_DIR = 'D:\DrawPaintData'
+npm run dev
+```
+
+生产构建由 `npm run build` 输出到 `dist/`，但 UI Studio 仍需要本地 API、画布数据目录以及（需要 Agent 自动派发时）桌面连接器。因此仓库当前提供的正式运行入口仍是 `npm run dev`。服务默认仅绑定 `127.0.0.1`；若要供局域网或公网访问，需要自行配置反向代理、身份认证和 HTTPS，并将 `/api` 转发给本机 API 端口 `43218`。不要直接把开发服务暴露到公网。
 
 ## 更新
 

@@ -1,7 +1,0 @@
-{
-  "repairs": [{
-    "regionId": "plate",
-    "imagePath": "C:/WorkPlace/Project/DrawPaint/output/ui-layers/acceptance-ai-plate.png",
-    "generatedRect": {"x": 24, "y": 105, "w": 1910, "h": 484}
-  }]
-}
