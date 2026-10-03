@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test:ui": "node --test tests/ui-studio.test.mjs tests/agent-threads.test.mjs tests/codex-canvas.test.mjs tests/mockup-workflow.test.mjs tests/hybrid.test.mjs",
+    "test:video": "node --test tests/video-editor.test.mjs tests/video-generated.test.mjs tests/video-models.test.mjs",
     "ui:job": "node scripts/ui-studio.mjs",
     "dev": "node ./server/dev.mjs",
     "build": "vite build",
@@ -14,6 +15,7 @@
     "server": "node ./server/http.mjs"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.32",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vitejs/plugin-react": "^5.0.0",
     "ag-psd": "^31.0.2",

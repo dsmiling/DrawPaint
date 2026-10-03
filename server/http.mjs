@@ -4,6 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createUiStudioHandler } from "./ui-studio/http.mjs";
 import { createAgentConnection } from "./ui-studio/agent-connection.mjs";
+import { handleVideo } from "./video.mjs";
 import {
   ROOT,
   agentRequestPath,
@@ -82,6 +83,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://127.0.0.1:${PORT}`);
 
   if (await handleUiStudio(req, res, url)) return;
+  if (await handleVideo(req, res, url)) return;
 
   if (req.method === "OPTIONS") {
     return sendJson(res, 204, {});
@@ -92,7 +94,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         ok: true,
         apiVersion: API_VERSION,
-        capabilities: ["agent-request-dispatch"],
+        capabilities: ["agent-request-dispatch", "local-video-generation", "local-video-editing"],
         projectDir: PROJECT_DIR,
         canvasDir: CANVAS_DIR,
         canvasUrl: `http://127.0.0.1:${Number(process.env.DRAWPAINT_PORT || 43217)}`,
@@ -264,6 +266,10 @@ const server = http.createServer(async (req, res) => {
 
     sendJson(res, 404, { error: "Not found", path: url.pathname });
   } catch (error) {
+    if (res.headersSent) {
+      if (!res.writableEnded) res.end();
+      return;
+    }
     sendJson(res, 500, { error: String(error?.message || error) });
   }
 });

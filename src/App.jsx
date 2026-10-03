@@ -996,6 +996,13 @@ export default function App() {
         <button type="button" onClick={onPickImage}>
           上传图片
         </button>
+        <button type="button" onClick={() => {
+          const editor = editorRef.current;
+          const shape = editor?.getSelectedShapes().find(item => item.type === "image");
+          const asset = shape && editor.getAsset(shape.props.assetId);
+          if (!asset?.props?.src) { showToast("先选中一张画布图片"); return; }
+          window.dispatchEvent(new CustomEvent("drawpaint:video-image", { detail: { src: asset.props.src } }));
+        }}>选中图片生视频</button>
         <input
           ref={fileInputRef}
           type="file"

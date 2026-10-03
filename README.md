@@ -15,6 +15,7 @@ DrawPaint 基于 [tldraw](https://github.com/tldraw/tldraw)，把自由画布、
 - **图层审阅与局部重做**：逐层对照原始效果图，仅重新生成不满意的组件，避免整套素材重复生图。
 - **素材复用与版本管理**：在已有任务中查找匹配组件，复用合格素材，并追踪来源、版本和父子关系。
 - **工程化交付**：导出 PNG + `manifest.json`、PSD 和 Unity UI 包，可继续编辑或直接进入项目制作流程。
+- **视频工坊**：使用本机 ComfyUI 图生视频，导入和剪辑片段，在节点画布与多轨时间线上整理素材，并导出包含原片音频的 MP4。
 - **本地优先**：画布、截图、任务记录和生成素材均保存在项目的 `canvas/` 目录中。
 
 ## 工作方式
@@ -30,6 +31,7 @@ PNG / PSD / Unity UI 包
 ```
 
 素材工坊的完整流程见 [UI 素材模式使用说明](docs/ui-studio.md)，验证范围见 [测试说明](docs/ui-testing.md)。
+视频生成、模型准备和剪辑流程见 [视频工坊使用说明](docs/video-studio.md)。
 
 ## 安装
 
@@ -65,6 +67,7 @@ npm run dev
 
 - 普通画布：<http://127.0.0.1:43217>
 - UI 素材工坊：<http://127.0.0.1:43217/?mode=ui>
+- 视频工坊：<http://127.0.0.1:43217/?mode=video>
 
 `npm run dev` 同时启动 Vite 前端和本地 API。默认端口分别为 `43217` 和 `43218`。
 
@@ -163,6 +166,7 @@ npm run dev       # 画布前端 + API
 npm run agent     # Codex 桌面连接器，须从 Codex 任务启动
 npm run build     # 生产构建
 npm run test:ui   # 工作流测试
+npm run test:video # 视频模型、时间线和素材持久化测试
 npm run preview   # 预览生产构建
 npm run server    # 仅启动本地 API
 ```

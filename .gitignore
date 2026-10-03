@@ -2,13 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.log
-canvas/pages/*/assets/
-canvas/pages/*/snapshot.json
-canvas/selection.json
-canvas/pending-request.json
-canvas/pending-inserts.json
-canvas/requests/
-!canvas/.gitkeep
+/canvas/*
+!/canvas/.gitkeep
 
 # Local secrets for git/gh helpers
 scripts/git-env.local.ps1

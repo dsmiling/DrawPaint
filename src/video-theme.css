@@ -1,0 +1,93 @@
+.vs-shell .vs-theme-toggle { width:32px; height:32px; padding:0; display:grid; place-items:center; flex:none; font-size:18px; line-height:1; }
+
+.vs-shell[data-theme="dark"] {
+  color-scheme:dark;
+  background:#212121;
+  color:#ececec;
+  scrollbar-color:#606060 #212121;
+  --vs-panel:#212121;
+  --vs-raised:#303030;
+  --vs-border:#424242;
+  --vs-text:#ececec;
+  --vs-muted:#b4b4b4;
+}
+.vs-shell[data-theme="dark"] :is(.vs-header,.vs-left,.vs-center,.vs-right,.vs-timeline-section) { background:var(--vs-panel); color:var(--vs-text); border-color:var(--vs-border); }
+.vs-shell[data-theme="dark"] :is(.vs-timeline-toolbar,.vs-frame-picker,.vs-inspector-fields,.vs-recent) { border-color:var(--vs-border); }
+.vs-shell[data-theme="dark"] :is(.vs-timeline-toolbar,.vs-ruler,.vs-lanes,.vs-right-tabs) { background-color:#191919; border-color:var(--vs-border); }
+.vs-shell[data-theme="dark"] .vs-ruler { background-image:repeating-linear-gradient(90deg,#303136 0 1px,transparent 1px var(--time-grid)); }
+.vs-shell[data-theme="dark"] .vs-lane { background-color:#202124; background-image:repeating-linear-gradient(90deg,#2a2b30 0 1px,transparent 1px var(--time-grid)); border-color:#303136; }
+.vs-shell[data-theme="dark"] .vs-lane:nth-child(even) { background-color:#252525; }
+.vs-shell[data-theme="dark"] .vs-lane-label { background:#353535; color:#c4c4c4; }
+.vs-shell[data-theme="dark"] :is(.vs-title small,.vs-help,.vs-empty-small,.vs-recent strong,.vs-layer-meta small,.vs-viewer-heading span,.vs-ruler span,.vs-transport span,.vs-timeline-toolbar span,.vs-timeline-toolbar label,.vs-size-label,.vs-frame-picker p,.vs-inspector-fields small,.vs-frame-controls span,.vs-context-title) { color:var(--vs-muted); }
+.vs-shell[data-theme="dark"] :is(.vs-inspector-fields label,.vs-create label,.vs-frame-pair > div,.vs-context-rename label) { color:#c6c6c6; }
+.vs-shell[data-theme="dark"] :where(button,select,textarea,input:not([type="range"]):not([type="file"])) { background:var(--vs-raised); border-color:#484848; color:var(--vs-text); }
+.vs-shell[data-theme="dark"] .vs-create input[type="file"] { background:var(--vs-raised); border-color:#484848; color:var(--vs-text); }
+.vs-shell[data-theme="dark"] .vs-create input[type="file"]::file-selector-button { margin-right:8px; padding:4px 7px; border:1px solid #5a5a5a; border-radius:5px; background:#3b3b3b; color:#ececec; }
+.vs-shell[data-theme="dark"] :is(input,textarea)::placeholder { color:#999; }
+.vs-shell[data-theme="dark"] :is(input,select,textarea):focus { border-color:#a18bdd; box-shadow:0 0 0 2px #a18bdd26; }
+.vs-shell[data-theme="dark"] :where(button:hover:not(:disabled)) { background:#3d3d3d; border-color:#737373; }
+.vs-shell[data-theme="dark"] .vs-primary { background:#8870bb; border-color:#8870bb; color:#fff; }
+.vs-shell[data-theme="dark"] .vs-primary:hover:not(:disabled) { background:#9c83ce; border-color:#9c83ce; }
+.vs-shell[data-theme="dark"] .vs-logo { background:#332e40; color:#d0c0f0; }
+.vs-shell[data-theme="dark"] .vs-online { color:#7ad1a4; }
+.vs-shell[data-theme="dark"] .vs-offline { color:#f0a59c; }
+.vs-shell[data-theme="dark"] .vs-layer { background:transparent; border-color:transparent; color:var(--vs-text); }
+.vs-shell[data-theme="dark"] .vs-layer:hover { background:#2c2c2c; border-color:#4a4a4a; }
+.vs-shell[data-theme="dark"] .vs-layer.is-selected { background:#3d354e; border-color:#a18bdd; color:#e5d9ff; }
+.vs-shell[data-theme="dark"] .vs-layer-icon { background:#393049; color:#d2bdf5; }
+.vs-shell[data-theme="dark"] .vs-recent button { background:transparent; color:#c6b5eb; }
+.vs-shell[data-theme="dark"] .vs-clip { background:#3a3348; border-color:#615370; color:#e3ddec; box-shadow:none; }
+.vs-shell[data-theme="dark"] .vs-clip.is-selected { background:#624d86; border-color:#c3aaf5; box-shadow:0 0 0 2px #a88bd966; }
+.vs-shell[data-theme="dark"] .vs-trim { background:#c4a3ff40; }
+.vs-shell[data-theme="dark"] .vs-transport button { background:transparent; border-color:transparent; }
+.vs-shell[data-theme="dark"] .vs-transport .vs-play { background:#8870bb; color:#fff; }
+.vs-shell[data-theme="dark"] .vs-transport .vs-play:hover { background:#9c83ce; }
+.vs-shell[data-theme="dark"] .vs-right-tabs button { background:transparent; border-color:transparent; }
+.vs-shell[data-theme="dark"] .vs-right-tabs button.is-current { background:#3d354e; color:#e5d9ff; }
+.vs-shell[data-theme="dark"] .vs-inspector-mode { background:#191919; }
+.vs-shell[data-theme="dark"] .vs-model-service,.vs-shell[data-theme="dark"] .vs-model-option { border-color:#484848; }
+.vs-shell[data-theme="dark"] .vs-model-option.is-selected { background:#302b3a; border-color:#a18bdd; }
+.vs-shell[data-theme="dark"] .vs-model-service small,.vs-shell[data-theme="dark"] .vs-model-option small { color:#b4b4b4; }
+.vs-shell[data-theme="dark"] .vs-model-missing { background:#332c29; }
+.vs-shell[data-theme="dark"] .vs-model-missing p { color:#ddae8f; }
+.vs-shell[data-theme="dark"] .vs-inspector-mode button { background:transparent; border-color:transparent; }
+.vs-shell[data-theme="dark"] .vs-inspector-mode button.is-current { background:#3d354e; color:#e5d9ff; }
+.vs-shell[data-theme="dark"] .vs-refine { background:#28262d; border-color:#48414f; }
+.vs-shell[data-theme="dark"] .vs-refine-result { border-color:#48414f; }
+.vs-shell[data-theme="dark"] .vs-refine-result p { color:#e2dee9; }
+.vs-shell[data-theme="dark"] .vs-notice { background:#332e40; border-color:#554668; color:#d0c0f0; }
+.vs-shell[data-theme="dark"] .vs-notice.is-error { background:#422b2b; border-color:#6f4444; color:#ffb4ac; }
+.vs-shell[data-theme="dark"] a { color:#c6b5eb; }
+.vs-shell[data-theme="dark"] .vs-context-menu { background:#252525; border-color:#545454; box-shadow:0 12px 32px #0009; }
+.vs-shell[data-theme="dark"] .vs-context-menu > button { background:transparent; border-color:transparent; }
+.vs-shell[data-theme="dark"] .vs-context-menu > button:hover:not(:disabled),.vs-shell[data-theme="dark"] .vs-context-menu > button:focus-visible { background:#3d354e; color:#e5d9ff; }
+.vs-shell[data-theme="dark"] .vs-context-menu > button.vs-context-delete { border-top-color:#484848; color:#ffb4ac; }
+.vs-shell[data-theme="dark"] .vs-context-menu > button.vs-context-delete:hover { background:#422b2b; color:#ffb4ac; }
+.vs-shell[data-theme="dark"] .vs-frame-pair img { background:#171b24; }
+.vs-shell[data-theme="dark"] .vs-stage-empty { color:#b4b4b4; }
+.vs-shell[data-theme="dark"] .vs-node-scroll { border-color:#4a4a4a; background-color:#1a1a1a; background-image:linear-gradient(#333 1px,transparent 1px),linear-gradient(90deg,#333 1px,transparent 1px); }
+.vs-shell[data-theme="dark"] .vs-node { background:#292929; border-color:#595169; box-shadow:0 7px 18px #0007; }
+.vs-shell[data-theme="dark"] .vs-node.is-selected { border-color:#c3aaf5; box-shadow:0 0 0 2px #9c7ed0,0 8px 22px #0009; }
+.vs-shell[data-theme="dark"] .vs-node-header { background:#3d354e; color:#eee4ff; }
+.vs-shell[data-theme="dark"] .vs-node.is-active .vs-node-header { background:#71579e; }
+.vs-shell[data-theme="dark"] .vs-node-footer { color:#bdb6ca; }
+.vs-shell[data-theme="dark"] .vs-node-empty { color:#b4b4b4; background:#292929; border-color:#4a4a4a; }
+.vs-shell[data-theme="dark"] .vs-splitter { background:#303030; }
+.vs-shell[data-theme="dark"] .vs-splitter::after { background:#777; }
+.vs-shell[data-theme="dark"] .vs-splitter:hover,.vs-shell[data-theme="dark"] .vs-splitter:focus-visible { background:#71579e; }
+.vs-shell[data-theme="dark"] .vs-right-toggle { background:#303030; color:#ddd; border-color:#555; }
+.vs-shell[data-theme="dark"] { background:#1d1e21; --vs-panel:#202124; --vs-raised:#2b2c30; --vs-border:#35373c; --vs-muted:#a0a4ad; }
+.vs-shell[data-theme="dark"] :is(.vs-header,.vs-left,.vs-right,.vs-timeline-section) { border-color:#35373c; }
+.vs-shell[data-theme="dark"] .vs-node-scroll { border-color:#34363b; background-color:#1b1c1f; background-image:linear-gradient(#292b30 1px,transparent 1px),linear-gradient(90deg,#292b30 1px,transparent 1px); }
+.vs-shell[data-theme="dark"] .vs-node { background:#292a2e; border-color:#41434a; box-shadow:0 3px 10px #0005; }
+.vs-shell[data-theme="dark"] .vs-node-header { background:#33343a; color:#e4e5e9; }
+.vs-shell[data-theme="dark"] .vs-node.is-active .vs-node-header { background:#403b4b; color:#eee9f8; }
+.vs-shell[data-theme="dark"] .vs-node.is-selected { border-color:#a896d7; box-shadow:0 0 0 1px #a896d7,0 4px 12px #0005; }
+.vs-shell[data-theme="dark"] .vs-node-footer { color:#a4a6ac; }
+.vs-shell[data-theme="dark"] .vs-graph-zoom { background:#292a2e; border-color:#404248; }
+.vs-shell[data-theme="dark"] .vs-graph-zoom output { color:#d1d2d7; }
+.vs-shell[data-theme="dark"] .vs-graph-zoom button { background:transparent; border-color:transparent; color:#dedee3; }
+.vs-shell[data-theme="dark"] .vs-graph-zoom button:hover { background:#393a41; }
+.vs-shell[data-theme="dark"] .vs-graph-zoom .vs-graph-fit { border-left:1px solid #404248; }
+.vs-shell[data-theme="dark"] .vs-layer.is-selected { background:#312e39; border-color:#585062; color:#eee9f8; }
+.vs-shell[data-theme="dark"] .vs-clip.is-selected { background:#4c3e60; border-color:#aa96cd; box-shadow:inset 0 0 0 1px #aa96cd66; }
