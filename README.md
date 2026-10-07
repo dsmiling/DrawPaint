@@ -1,10 +1,10 @@
 # DrawPaint
 
-> 基于 Codex / GPT 的本地 AI 视觉画布：从灵感、生图和改图，到 UI 切图、分层与项目交付。
+> 支持 Codex / GPT 与本地 Qwen-Image-2.1 的 AI 视觉画布：从灵感、生图和改图，到 UI 切图、分层与项目交付。
 
 DrawPaint 基于 [tldraw](https://github.com/tldraw/tldraw)，把自由画布、AI 图片生成和游戏 UI 素材生产整合到一个本地工作台中。你可以在画布上整理灵感与参考图，通过文字或可视化标注生成、修改图片，也可以从完整 UI 效果图继续拆出可编辑、可复用、可导出的独立图层。
 
-项目的 AI 工作流现已统一迁移到 **Codex / GPT**：画布请求会直接派发为相互隔离的 Codex 任务，由 Codex 完成视觉理解、提示词组织以及 GPT 生图或改图，再由 DrawPaint 负责结果回填、切图、图层管理和工程导出。不再依赖旧版 Cursor deeplink、Cursor 命令或 Cursor Skills，使用 Codex 内置生图能力时也无需额外配置图片 API Key。
+绘画画布和素材工坊可以选择 **Codex / GPT** 或 **本地 Qwen-Image-2.1**。Codex 请求派发为独立任务；本地 Qwen 请求通过 ComfyUI 直接执行，不需要图片 API Key 或 Agent 连接。两条路径都由 DrawPaint 回填结果、管理素材和导出工程；语义拆解、分类及 AI 分层继续由 Codex 完成。不再依赖旧版 Cursor deeplink、Cursor 命令或 Cursor Skills。
 
 ## 核心能力
 
@@ -32,6 +32,8 @@ PNG / PSD / Unity UI 包
 
 素材工坊的完整流程见 [UI 素材模式使用说明](docs/ui-studio.md)，验证范围见 [测试说明](docs/ui-testing.md)。
 视频生成、模型准备和剪辑流程见 [视频工坊使用说明](docs/video-studio.md)。
+原型、生图、生视频、透明帧导出与边界验收见 [端到端帧动画规范](docs/video-studio.md#端到端帧动画规范)。
+本地 Qwen 的模型准备、生成与验证见 [本地 Qwen 生图说明](docs/qwen-images.md)。
 
 ## 安装
 
@@ -55,7 +57,7 @@ npm install
 
 ## 启动
 
-DrawPaint 需要两个长期运行的进程。
+使用 Codex 时启动画布和连接器；使用本地 Qwen 时启动画布和 ComfyUI。
 
 ### 1. 启动画布
 
@@ -89,8 +91,8 @@ npm run agent
 
 1. 点击顶部 **AI 图片**，创建并选中占位框。
 2. 选择比例，输入提示词，可选画布图片或本地图片作为参考。
-3. 点击发送。画布会保存请求并直接创建 Codex 独立任务。
-4. Codex 生成图片后自动替换占位框；打开着的画布会刷新结果。
+3. 在顶部“生图模型”选择 Codex / GPT 或本地 Qwen-Image-2.1，然后发送。
+4. 图片生成后自动替换占位框；打开着的画布会刷新结果。
 
 ### 根据标注修改图片
 
@@ -167,6 +169,7 @@ npm run agent     # Codex 桌面连接器，须从 Codex 任务启动
 npm run build     # 生产构建
 npm run test:ui   # 工作流测试
 npm run test:video # 视频模型、时间线和素材持久化测试
+npm run test:qwen  # 本地 Qwen 接入、任务恢复和素材导出测试
 npm run preview   # 预览生产构建
 npm run server    # 仅启动本地 API
 ```
@@ -178,6 +181,7 @@ npm run server    # 仅启动本地 API
 | `DRAWPAINT_PORT` | 画布 Web 端口，默认 `43217` |
 | `DRAWPAINT_API_PORT` | API 端口，默认 `43218` |
 | `DRAWPAINT_PROJECT_DIR` | 画布数据所在项目目录 |
+| `DRAWPAINT_COMFY_URL` | 本机 ComfyUI 地址，默认 `http://127.0.0.1:8188` |
 
 ### 目录结构
 
@@ -195,7 +199,7 @@ DrawPaint/
 
 ## 当前边界
 
-- Codex 桌面应用和连接器需要在同一台机器运行。
-- 每个请求会创建独立 Codex 任务，方便隔离上下文和检查结果。
-- 连接器进程退出后，新的请求无法派发；重启连接器即可恢复。
+- Codex 路径需要桌面应用和连接器在同一台机器运行，每个请求创建独立任务。
+- 本地 Qwen 生图和参考图编辑需要 ComfyUI 与模型就绪；语义拆解、分类和 AI 分层需要 Agent。
+- 连接器进程退出后，Codex 请求无法派发；本地 Qwen 生图仍可使用。
 - 图像生成结果仍需人工检查，特别是文字、透明边缘、字体和图层复原。

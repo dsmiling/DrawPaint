@@ -18,8 +18,12 @@
 .uis-shell textarea { resize: vertical; }
 .uis-shell label { display: flex; flex-direction: column; gap: 5px; color: #59647c; font-size: 12px; }
 .uis-shell input[type="checkbox"] { accent-color: #7457d8; width: 16px; height: 16px; }
-.uis-header { height: 62px; flex-shrink: 0; padding: 10px 22px; border-bottom: 1px solid #e5e7ef; display: flex; align-items: center; gap: 18px; background: #fff; }
+.uis-header { min-height: 46px; flex-shrink: 0; padding: 8px 12px; border-bottom: 1px solid #e5e7ef; display: flex; align-items: center; gap: 10px; background: #fff; }
 .uis-header > div { display: flex; align-items: center; gap: 12px; }
+.uis-header > .dp-image-provider { flex-direction: column; align-items: stretch; gap: 6px; font-size: 12px; }
+.uis-header .dp-image-provider label { flex-direction: row; align-items: center; gap: 8px; color: inherit; }
+.uis-header .dp-image-provider select { width: 120px; min-width: 120px; padding: 6px; border-radius: 6px; }
+.uis-header .dp-image-provider > span button { padding: 2px 5px; font-size: 11px; }
 .uis-header strong { font-size: 17px; letter-spacing: .03em; }
 .uis-logo { display: grid; place-content: center; width: 32px; height: 32px; background: #ece5fc; border-radius: 9px; color: #7457d8; font-size: 24px; }
 .uis-badge { border: 1px solid #ded6f5; border-radius: 5px; padding: 2px 6px; font-size: 10px; color: #866fc1; }
@@ -125,7 +129,7 @@
 .uis-slice-list small { color: #a1a7b4; white-space: nowrap; }
 .uis-shell button.is-active { background: #eee7fc; border-color: #b6a3e4; color: #7656bd; }
 .uis-review footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-top: 1px solid #eceef4; font-size: 11px; color: #969eaf; }
-@media(max-width:1000px) { .uis-layout { grid-template-columns: minmax(0, 1fr) 320px; } .uis-form, .uis-history { padding: 14px; } .uis-tabs { margin: 14px 14px 0; } .uis-header { padding: 10px 14px; } .uis-badge { display: none; } .uis-empty h1 { font-size: 18px; } .uis-empty > div:last-child { gap: 6px; } }
+@media(max-width:1000px) { .uis-layout { grid-template-columns: minmax(0, 1fr) 320px; } .uis-form, .uis-history { padding: 14px; } .uis-tabs { margin: 14px 14px 0; } .uis-badge { display: none; } .uis-empty h1 { font-size: 18px; } .uis-empty > div:last-child { gap: 6px; } }
 @media(max-width:700px) { .uis-layout { grid-template-columns: minmax(0, 1fr) 285px; } .uis-save-status { display: none; } .uis-header { justify-content: space-between; } .uis-empty { display: none; } .uis-review-details { width: 180px; } .uis-modal-backdrop { padding: 8px; } .dp-mode-nav > span { display: none; } }
 
 .uis-layout { --uis-layers-default-width: 252px; grid-template-columns: max-content minmax(280px, 1fr) 340px; overflow-x: auto; }

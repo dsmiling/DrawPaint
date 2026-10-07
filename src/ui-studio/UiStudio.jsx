@@ -15,6 +15,8 @@ import DeliveryDialog from "./DeliveryDialog.jsx";
 import { loadSplitOptions, splitStorageKey, sourcePixelMode } from "../../shared/split-options.mjs";
 import { isolatePanelKey, blurCanvasForPanel } from "./panel-events.js";
 import { canvasResult, orphanedCanvasDelivery } from "../../shared/ui-delivery.mjs";
+import ImageProvider from "../ImageProvider.jsx";
+import useImageProvider from "../useImageProvider.js";
 
 const defaults = { removeBackground: true, autoSplit: true, background: "#ff00ff", removalMode: "color", tolerance: 24, feather: 8, minArea: 12, padding: 2 };
 const working = job => ["queued", "generating", "processing", "agent_dispatching", "agent_queued", "agent_generating", "agent_unknown"].includes(job.status);
@@ -81,6 +83,7 @@ export default function UiStudio() {
   const [agent, setAgent] = useState(null);
   const [kind, setKind] = useState("generate");
   const [workflow, setWorkflow] = useState("mockup");
+  const [imageProvider, setImageProvider] = useImageProvider("ui-studio");
   const [planDialog, setPlanDialog] = useState(null), [compareJob, setCompareJob] = useState(null);
   const [maskJob, setMaskJob] = useState(null);
   const [prompt, setPrompt] = useState("");
@@ -119,14 +122,14 @@ export default function UiStudio() {
   useEffect(() => {
     try {
       const draft = JSON.parse(localStorage.getItem("drawpaint.ui-studio.draft") || "null");
-      if (draft) { setPrompt(draft.prompt || ""); setSize(draft.size || "2048x1152"); setQuality(draft.quality || "medium"); setWorkflow(draft.workflow || "mockup"); }
+      if (draft) { setPrompt(draft.prompt || ""); setSize(draft.size === "1344x768" && imageProvider !== "qwen" ? "2048x1152" : draft.size || "2048x1152"); setQuality(draft.quality || "medium"); setWorkflow(draft.workflow || "mockup"); }
     } catch { /* Ignore an outdated draft. */ }
     draftLoaded.current = true;
   }, []);
   useEffect(() => {
     if (!draftLoaded.current) return;
-    localStorage.setItem("drawpaint.ui-studio.draft", JSON.stringify({ prompt, size, quality, workflow }));
-  }, [prompt, size, quality, workflow]);
+    localStorage.setItem("drawpaint.ui-studio.draft", JSON.stringify({ prompt, size, quality, workflow, imageProvider }));
+  }, [prompt, size, quality, workflow, imageProvider]);
 
   const persist = useCallback(ed => {
     if (saveBlocked.current) return Promise.resolve();
@@ -226,13 +229,13 @@ export default function UiStudio() {
   async function executeGeneration(request) {
     const job = await uiApi(request.jobId ? `jobs/${request.jobId}/dispatch` : "jobs", request.jobId ? {} : request);
     setSelectedId(job.id);
-    setMessage(job.error || (job.status === "awaiting_agent" ? "任务已保存，连接 Agent 后在任务记录中启动。" : job.kind === "generate" ? "已提交到独立 Agent 新对话，对话将保留供检查；可在任务记录检查回填链路。" : "任务已开始，可在任务记录检查处理和回填结果。"));
+    setMessage(job.error || (job.provider === "qwen" && job.kind === "generate" ? "已提交到本地 Qwen，生成后自动切图并回填画布。" : job.status === "awaiting_agent" ? "任务已保存，连接 Agent 后在任务记录中启动。" : job.kind === "generate" ? "已提交到独立 Agent 新对话，对话将保留供检查；可在任务记录检查回填链路。" : "任务已开始，可在任务记录检查处理和回填结果。"));
     await refresh();
   }
   async function submit() {
     await run(async () => {
       if (kind === "extract" && !source) throw new Error("请先选择需要切图的 UI 图集");
-      const request = { kind, workflow, provider: "agent", dispatch: kind === "generate" && Boolean(agent?.connected), prompt: kind === "extract" ? source?.name : prompt, size, quality, options, dataUrl: source?.dataUrl, references: references.map(r => r.dataUrl) };
+      const request = { kind, workflow, provider: imageProvider, dispatch: imageProvider === "agent" && kind === "generate" && Boolean(agent?.connected), prompt: kind === "extract" ? source?.name : prompt, size, quality, options, dataUrl: source?.dataUrl, references: references.map(r => r.dataUrl) };
       await executeGeneration(request);
     });
   }
@@ -260,7 +263,9 @@ export default function UiStudio() {
     ? messageJob.continuationError ? `继续拆分失败：${messageJob.continuationError}` : messageJob.continuationId ? "方案已完成，正在继续图片拆分；完成后自动显示候选图层，可在画布检查。" : messageJob.autoContinue ? "方案已完成，正在准备图片拆分。" : `方案已完成，共 ${messageJob.regions?.length || 0} 个图层，尚未生成图片。`
     : jobStateLabel(messageJob))) : message;
   return <div className="uis-shell" data-theme={theme} onKeyDown={isolatePanelKey} onKeyUp={isolatePanelKey} onPointerDownCapture={event=>blurCanvasForPanel(event,editor)} onFocusCapture={event=>blurCanvasForPanel(event,editor)}>
-    <header className="uis-header"><div><span className="uis-logo">▦</span><strong>素材工坊</strong><span className="uis-badge">独立模式</span></div><span className="uis-save-status">{saveStatus}</span>
+    <header className="uis-header"><div className="dp-model-brand"><span className="uis-logo">▦</span><strong>素材工坊</strong></div>
+      <ImageProvider value={imageProvider} onChange={value => { setImageProvider(value); setSize(value === "qwen" ? workflow === "mockup" ? "1344x768" : "1024x1024" : "2048x1152"); }} disabled={busy} compact />
+      <span className="uis-badge">独立模式</span><span className="uis-save-status">{saveStatus}</span>
       <div className="uis-background-setting" role="group" aria-label="画布底板颜色">
         <button className="uis-theme-toggle" type="button" aria-label={theme === "dark" ? "切换浅色主题" : "切换深色主题"} title={theme === "dark" ? "切换浅色主题" : "切换深色主题"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "☀" : "☾"}</button>
         <span>底板</span>
@@ -289,6 +294,7 @@ export default function UiStudio() {
         <button role="tab" aria-selected={kind === "extract"} onClick={() => { setKind("extract"); setOptions({ ...defaults, background: "auto", removalMode: "edge" }); }}>{workflow === "mockup" ? "导入效果图" : "提取 UI"}</button></div>
       <div className="uis-form">
         {kind === "generate" ? <>
+          {imageProvider === "qwen" && <p className="uis-hint">建议先用 1K 生成。图片完成后可切图、导出；语义拆解与 AI 分层需要连接 Agent。</p>}
           <label>描述<textarea aria-label="UI 素材提示词" rows={4} value={prompt} maxLength={12000} onChange={e => setPrompt(e.target.value)} placeholder="输入内容与风格…" /></label>
           <div className="uis-prompt-presets" role="group" aria-label="描述预设">{promptPresets.map(preset => <button type="button" key={preset.label} title={`填入${preset.label}预设`} onClick={event => {
             setPrompt(preset[workflow === "mockup" ? "mockup" : "atlas"]);
@@ -297,7 +303,7 @@ export default function UiStudio() {
             requestAnimationFrame(() => { const start = input?.value.indexOf("【风格】"); if (start >= 0) input.setSelectionRange(start, start + 4); });
           }}>{preset.label}</button>)}</div>
           <div className="uis-fields"><label>质量<select value={quality} onChange={e => setQuality(e.target.value)}><option value="low">草稿</option><option value="medium">标准</option><option value="high">精细</option></select></label>
-          <label>尺寸<select value={size} onChange={e => setSize(e.target.value)}><option value="1024x1024">1K · 1:1</option><option value="1536x1024">1536 × 1024 · 3:2</option><option value="1024x1536">1024 × 1536 · 2:3</option><option value="2048x2048">2K · 1:1</option><option value="2048x1152">2K · 16:9</option></select></label></div>
+          <label>尺寸<select value={size} onChange={e => setSize(e.target.value)}><option value="1024x1024">1K · 1:1</option>{imageProvider === "qwen" && <option value="1344x768">1344 × 768 · 宽屏</option>}<option value="1536x1024">1536 × 1024 · 3:2</option><option value="1024x1536">1024 × 1536 · 2:3</option><option value="2048x2048">2K · 1:1</option><option value="2048x1152">2K · 16:9</option></select></label></div>
           <label className="uis-upload">＋ 参考图 <small>{references.length}/4</small><input type="file" multiple accept={accepted} onChange={e => pickFiles(e, "reference")} disabled={busy} /></label>
           {references.length > 0 && <div className="uis-references">{references.map((ref, i) => <div key={i}><img src={ref.dataUrl} alt={ref.name} /><button aria-label={`移除参考图 ${i + 1}`} onClick={() => setReferences(rows => rows.filter((_, n) => n !== i))}>×</button></div>)}</div>}
         </> : <>
@@ -307,7 +313,7 @@ export default function UiStudio() {
         </>}
         {workflow === "atlas" && <ProcessingOptions options={options} setOptions={setOptions} />}
         <button className="uis-primary uis-submit" disabled={busy || !canvasReady || (kind === "generate" ? !prompt.trim() : !source)} onClick={submit}>
-          {busy ? "正在提交…" : workflow === "mockup" ? kind === "generate" ? agent?.connected ? "生成" : "保存任务（待连接）" : "导入" : kind === "generate" ? "生成" : "提取"}</button>
+          {busy ? "正在提交…" : imageProvider === "qwen" && kind === "generate" ? "本地生成" : workflow === "mockup" ? kind === "generate" ? agent?.connected ? "生成" : "保存任务（待连接）" : "导入" : kind === "generate" ? "生成" : "提取"}</button>
         {displayedMessage && <div className="uis-message" role="status">{displayedMessage}{messageJob?.operation === "plan" && messageJob.status === "ready" && <button onClick={() => setPlanDialog(messageJob)}>查看方案</button>}<button aria-label="关闭提示" onClick={() => { setMessage(""); setMessageJobId(null); }}>×</button></div>}
       </div>
       <MockupWorkflow job={selectedJob} jobs={jobs} editor={editor} ready={canvasReady} busy={busy} agent={agent} onRun={run} onRefresh={refresh} onSelect={setSelectedId} onPlan={setPlanDialog} onCompare={setCompareJob} />

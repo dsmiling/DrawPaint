@@ -44,6 +44,18 @@ export function dispatchAgentRequest(requestId) {
   });
 }
 
+export function getImageRequest(id) {
+  return api(`/api/agent-request/${encodeURIComponent(id)}`);
+}
+
+export function getQwenHealth() {
+  return api("/api/qwen/health");
+}
+
+export function cancelImageRequest(id) {
+  return api(`/api/agent-request/${encodeURIComponent(id)}/cancel`, { method: "POST", body: "{}" });
+}
+
 export function getPendingInserts() {
   return api("/api/pending-inserts");
 }

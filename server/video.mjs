@@ -5,10 +5,13 @@ import { randomUUID } from "node:crypto";
 import { initCanvasLayout, readJson, resolveProjectDir, writeJson } from "./storage.mjs";
 import { createVideoEditor, streamFile } from "./video-editor.mjs";
 import { createGeneratedVideoStore } from "./video-generated.mjs";
+import { createVideoQueueReader } from "./video-queue.mjs";
 import { listPromptModels, refineVideoPrompt } from "./video-prompt.mjs";
 import { buildVideoGraph, modelById } from "./video-models.mjs";
 import { createVideoRuntime } from "./video-runtime.mjs";
 import { extractVideoContinuationFrame } from "./video-continuation.mjs";
+import { prepareAnimationReferences } from "./video-animation-input.mjs";
+import { frameAnimationPrompt, normalizeFrameAnimation } from "../shared/frame-animation.js";
 
 const comfy = "http://127.0.0.1:8188";
 const projectDir = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
@@ -16,6 +19,8 @@ const canvasDir = initCanvasLayout(projectDir);
 const comfyOutputDir = path.resolve(projectDir, "..", "ComfyUI", "output");
 const jobFile = path.join(canvasDir, "video-jobs.json");
 const jobIds = new Set(readJson(jobFile, []));
+const jobOptionsFile = path.join(canvasDir, "video-job-options.json");
+const jobOptions = readJson(jobOptionsFile, {});
 const runtime = createVideoRuntime({ projectDir, canvasDir, comfyUrl: comfy });
 
 function json(res, status, value) {
@@ -62,8 +67,9 @@ function resolveComfyOutputImage(image, label) {
   return file;
 }
 
-const generatedStore = createGeneratedVideoStore({ canvasDir, comfyJson, videoOutput });
-const handleEditor = createVideoEditor({ canvasDir, jobIds, generatedStore });
+const generatedStore = createGeneratedVideoStore({ canvasDir, comfyJson, videoOutput, jobOptions });
+const videoQueue = createVideoQueueReader({ jobIds, jobOptions, generatedStore, comfyJson });
+const handleEditor = createVideoEditor({ canvasDir, jobIds, generatedStore, jobOptions });
 
 export async function handleVideo(req, res, url) {
   if (!url.pathname.startsWith("/api/video/")) return false;
@@ -85,7 +91,7 @@ export async function handleVideo(req, res, url) {
   try {
     if (await handleEditor(req, res, url)) return true;
     if (req.method === "GET" && url.pathname === "/api/video/prompt-models") {
-      json(res, 200, await listPromptModels()); return true;
+      json(res, 200, await listPromptModels(url.searchParams.get("provider") || "cursor")); return true;
     }
     if (req.method === "POST" && url.pathname === "/api/video/refine-prompt") {
       json(res, 200, await refineVideoPrompt(await bodyJson(req))); return true;
@@ -102,14 +108,13 @@ export async function handleVideo(req, res, url) {
       return true;
     }
     if (req.method === "GET" && url.pathname === "/api/video/jobs") {
-      const ids = [...jobIds].slice(-30).reverse();
-      const jobs = await Promise.all(ids.map(async id => {
-        try {
-          const { file, history } = await generatedStore.resolve(id);
-          return { id, status: file ? "completed" : history?.status?.status_str === "error" ? "failed" : "running", url: file ? `/api/video/jobs/${id}/file` : null };
-        } catch { return { id, status: "unknown" }; }
-      }));
+      const limit = Number(url.searchParams.get("limit") ?? 30);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("视频素材数量须为 1–500");
+      const { jobs } = await videoQueue.read(limit);
       json(res, 200, { jobs }); return true;
+    }
+    if (req.method === "GET" && url.pathname === "/api/video/queue") {
+      json(res, 200, await videoQueue.read(30, true)); return true;
     }
     const continuationMatch = /^\/api\/video\/jobs\/([a-f0-9-]{36})\/continuation-frame$/.exec(url.pathname);
     if (req.method === "POST" && continuationMatch) {
@@ -124,9 +129,11 @@ export async function handleVideo(req, res, url) {
     }
     if (req.method === "POST" && url.pathname === "/api/video/jobs") {
       const body = await bodyJson(req);
+      if (body.folderId !== undefined) handleEditor.library.assertFolder(body.folderId);
       const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(body.image || "");
       const imageRefPath = body.imageRef ? resolveComfyOutputImage(body.imageRef, "起始帧") : null;
       const prompt = String(body.prompt || "").trim();
+      const frameAnimation = normalizeFrameAnimation(body.frameAnimation);
       const modelId = String(body.modelId || "minimax-h3");
       const seconds = Number(body.seconds ?? (modelId === "minimax-h3" ? 5 : 2));
       const model = modelById(modelId);
@@ -153,6 +160,22 @@ export async function handleVideo(req, res, url) {
         imageBuffer = normalized.data;
         imageMetadata = normalized.info;
       }
+      let lastBuffer = null, lastExtension = null, lastMime = null;
+      if (body.lastImage || body.lastImageRef) {
+        const lastMatch = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(body.lastImage || "");
+        const lastImageRefPath = body.lastImageRef ? resolveComfyOutputImage(body.lastImageRef, "尾帧") : null;
+        if (!lastMatch && !lastImageRefPath || lastMatch && Buffer.byteLength(lastMatch[2], "base64") > 8 * 1024 * 1024) throw new Error("尾帧图片格式或大小无效");
+        lastBuffer = lastMatch ? Buffer.from(lastMatch[2], "base64") : await fs.promises.readFile(lastImageRefPath);
+        lastExtension = lastMatch ? (lastMatch[1] === "image/jpeg" ? "jpg" : lastMatch[1].split("/")[1]) : path.extname(lastImageRefPath).slice(1).replace(/^jpe?g$/i, "jpg");
+        lastMime = lastMatch?.[1] || (lastExtension === "jpg" ? "image/jpeg" : `image/${lastExtension}`);
+      }
+      const prepared = await prepareAnimationReferences(imageBuffer, lastBuffer, frameAnimation);
+      imageBuffer = prepared.image; lastBuffer = prepared.lastImage;
+      if (frameAnimation.enabled) {
+        imageMetadata = await sharp(imageBuffer).metadata();
+        if (lastBuffer) { lastExtension = "png"; lastMime = "image/png"; }
+      }
+      const generationPrompt = frameAnimation.enabled ? frameAnimationPrompt(prompt, prepared.settings.background) : prompt;
       const format = imageMetadata.format === "jpg" ? "jpeg" : imageMetadata.format;
       const mime = `image/${format}`;
       if (!["image/png", "image/jpeg", "image/webp"].includes(mime)) throw new Error("不支持该起始图片格式");
@@ -162,20 +185,14 @@ export async function handleVideo(req, res, url) {
       form.append("overwrite", "false");
       const uploaded = await comfyJson("/upload/image", { method: "POST", body: form });
       let lastImage = null;
-      if (body.lastImage || body.lastImageRef) {
-        const lastMatch = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(body.lastImage || "");
-        const lastImageRefPath = body.lastImageRef ? resolveComfyOutputImage(body.lastImageRef, "尾帧") : null;
-        if (!lastMatch && !lastImageRefPath || lastMatch && Buffer.byteLength(lastMatch[2], "base64") > 8 * 1024 * 1024) throw new Error("尾帧图片格式或大小无效");
-        const lastBuffer = lastMatch ? Buffer.from(lastMatch[2], "base64") : await fs.promises.readFile(lastImageRefPath);
-        const lastExtension = lastMatch ? (lastMatch[1] === "image/jpeg" ? "jpg" : lastMatch[1].split("/")[1]) : path.extname(lastImageRefPath).slice(1).replace(/^jpe?g$/i, "jpg");
-        const lastMime = lastMatch?.[1] || (lastExtension === "jpg" ? "image/jpeg" : `image/${lastExtension}`);
+      if (lastBuffer) {
         const lastForm = new FormData();
         lastForm.append("image", new Blob([lastBuffer], { type: lastMime }), `DrawPaint_${id}_last.${lastExtension}`);
         lastForm.append("overwrite", "false");
         lastImage = (await comfyJson("/upload/image", { method: "POST", body: lastForm })).name;
       }
       const graph = buildVideoGraph({
-        modelId, image: uploaded.name, lastImage, prompt, seconds, id,
+        modelId, image: uploaded.name, lastImage, prompt: generationPrompt, seconds, id,
         imageWidth: imageMetadata.width, imageHeight: imageMetadata.height,
       });
       const queued = await comfyJson("/prompt", {
@@ -184,26 +201,31 @@ export async function handleVideo(req, res, url) {
       if (!queued.prompt_id) throw new Error("ComfyUI 未返回任务编号");
       jobIds.add(queued.prompt_id);
       writeJson(jobFile, [...jobIds]);
-      json(res, 200, { id: queued.prompt_id });
+      jobOptions[queued.prompt_id] = { frameAnimation: prepared.settings, lockBackground: prepared.settings.enabled, name: String(body.name || "生成视频").slice(0, 100), prompt, modelId, seconds, createdAt: new Date().toISOString() };
+      writeJson(jobOptionsFile, jobOptions);
+      handleEditor.library.register({ type: "job", id: queued.prompt_id }, body.folderId);
+      json(res, 200, { id: queued.prompt_id, frameAnimation: prepared.settings, preparation: prepared.preparation });
       return true;
+    }
+    const backgroundMatch = /^\/api\/video\/jobs\/([a-f0-9-]{36})\/fix-background$/.exec(url.pathname);
+    if (req.method === "POST" && backgroundMatch) {
+      const id = backgroundMatch[1], settings = jobOptions[id]?.frameAnimation;
+      if (!jobIds.has(id) || !settings?.enabled || !["#ff00ff", "#00ff00"].includes(settings.background)) throw new Error("请选择使用固定底色的帧动画视频");
+      jobOptions[id].lockBackground = true; writeJson(jobOptionsFile, jobOptions);
+      await generatedStore.resolve(id, { wait: false, retry: true });
+      json(res, 200, await videoQueue.get(id)); return true;
     }
     const match = /^\/api\/video\/jobs\/([a-f0-9-]{36})(\/file)?$/.exec(url.pathname);
     if (["GET", "HEAD"].includes(req.method) && match) {
       const id = match[1];
       if (!jobIds.has(id)) { json(res, 404, { error: "当前服务未提交该任务" }); return true; }
-      const { file, history } = await generatedStore.resolve(id);
       if (match[2]) {
+        const { file } = await generatedStore.resolve(id);
         if (!file) { json(res, 404, { error: "视频尚未生成或视频源已丢失" }); return true; }
         streamFile(req, res, file);
         return true;
       }
-      const status = history?.status?.status_str;
-      const executionError = (history?.status?.messages || []).find(item => item[0] === "execution_error")?.[1];
-      json(res, 200, {
-        id, status: file ? "completed" : status === "error" ? "failed" : "running",
-        error: executionError?.exception_message || null,
-        url: file ? `/api/video/jobs/${id}/file` : null,
-      });
+      json(res, 200, await videoQueue.get(id));
       return true;
     }
     json(res, 404, { error: "接口不存在" });

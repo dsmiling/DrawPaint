@@ -5,8 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:qwen": "node --test tests/qwen-images.test.mjs",
     "test:ui": "node --test tests/ui-studio.test.mjs tests/agent-threads.test.mjs tests/codex-canvas.test.mjs tests/mockup-workflow.test.mjs tests/hybrid.test.mjs",
-    "test:video": "node --test tests/video-editor.test.mjs tests/video-generated.test.mjs tests/video-models.test.mjs",
+    "test:video": "node --test tests/video-editor.test.mjs tests/video-editing.test.mjs tests/video-canvases.test.mjs tests/video-library.test.mjs tests/video-generated.test.mjs tests/video-background.test.mjs tests/video-models.test.mjs tests/video-sequence.test.mjs tests/video-attached-sequences.test.mjs tests/video-prompt.test.mjs tests/video-animation.test.mjs tests/video-queue.test.mjs",
     "ui:job": "node scripts/ui-studio.mjs",
     "dev": "node ./server/dev.mjs",
     "build": "vite build",

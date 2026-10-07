@@ -17,8 +17,12 @@ import {
   saveSnapshot,
   submitAgentRequest,
   dispatchAgentRequest,
+  getImageRequest,
+  cancelImageRequest,
   uploadAsset,
 } from "./api.js";
+import ImageProvider from "./ImageProvider.jsx";
+import useImageProvider from "./useImageProvider.js";
 import {
   ANNOTATION_TOOL_ID,
   ANNOTATION_TOOL_LABEL,
@@ -281,6 +285,7 @@ function HolderGenerateDock({
   busy,
   onGenerate,
   lastRequestId,
+  requestMessage,
   holderInfo,
   referenceItems,
   setReferenceItems,
@@ -377,7 +382,7 @@ function HolderGenerateDock({
         </button>
       </div>
       <div className="dp-dock__meta">
-        {lastRequestId ? `Codex 任务 ${lastRequestId.slice(0, 8)}… 已派发` : "回车或点发送 → Codex"}
+        {requestMessage || (lastRequestId ? `任务 ${lastRequestId.slice(0, 8)}… 已提交` : "回车或点发送生成图片")}
       </div>
     </div>
   );
@@ -488,6 +493,11 @@ export default function App() {
   /** AI 图片框生成提示词（面板本地态，对齐 Cowart：换框不清空，发送后清空） */
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [lastRequestId, setLastRequestId] = useState(null);
+  const [requestMessage, setRequestMessage] = useState("");
+  const [imageProvider, setImageProvider] = useImageProvider("canvas");
+  const [localRequestIds, setLocalRequestIds] = useState(() => {
+    try { const ids = JSON.parse(localStorage.getItem("drawpaint.canvas.qwen-requests") || "[]"); return Array.isArray(ids) ? ids.filter(id => /^[a-f0-9-]{36}$/.test(id)) : []; } catch { return []; }
+  });
   const [holderInfo, setHolderInfo] = useState(null);
   const [selectedAnnotationArrowId, setSelectedAnnotationArrowId] = useState(null);
   /** Double-click / after-draw opens the text+refs panel; single select does not. */
@@ -504,6 +514,30 @@ export default function App() {
     setToast(msg);
     window.setTimeout(() => setToast(""), 2800);
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("drawpaint.canvas.qwen-requests", JSON.stringify(localRequestIds)); } catch { /* Server retains requests. */ }
+    if (!localRequestIds.length) return;
+    let stopped = false, timer;
+    async function poll() {
+      const results = await Promise.allSettled(localRequestIds.map(id => getImageRequest(id)));
+      if (stopped) return;
+      const finished = [];
+      results.forEach(result => {
+        if (result.status !== "fulfilled") return;
+        const request = result.value.request;
+        if (["completed", "failed", "cancelled"].includes(request.status)) {
+          finished.push(request.id);
+          const message = request.status === "completed" ? "Qwen 图片已生成并回填画布" : request.status === "cancelled" ? "Qwen 任务已取消" : `Qwen 生图失败：${request.error}`;
+          setStatus(message); setRequestMessage(message); showToast(message);
+        }
+      });
+      if (finished.length) setLocalRequestIds(ids => ids.filter(id => !finished.includes(id)));
+      else timer = setTimeout(poll, 2500);
+    }
+    poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [localRequestIds, showToast]);
 
   const annotationDockStyleOpts = {
     minWidth: 380,
@@ -856,6 +890,8 @@ export default function App() {
 
       const { request } = await submitAgentRequest({
         type: holder ? "ai_image_generate" : "generate",
+        provider: imageProvider,
+        generationPrompt: generatePrompt,
         prompt: fullPrompt,
         selection,
         anchorShapeId: holder?.anchorShapeId || null,
@@ -865,9 +901,12 @@ export default function App() {
         referencePaths: references.map((r) => r.relativePath),
       });
       setLastRequestId(request.id);
+      const snapshot = getSnapshot(editor.store);
+      await saveSnapshot(snapshot.document, snapshot.session);
       await dispatchAgentRequest(request.id);
-      showToast("已派发到 Codex 独立任务");
-      setStatus(`Codex 任务 ${request.id.slice(0, 8)}… 已派发`);
+      const message = imageProvider === "qwen" ? `Qwen 任务 ${request.id.slice(0, 8)}… 排队生成中` : `Codex 任务 ${request.id.slice(0, 8)}… 已派发`;
+      if (imageProvider === "qwen") setLocalRequestIds(ids => [...ids, request.id]);
+      showToast(message); setStatus(message); setRequestMessage(message);
       for (const item of referenceItems) {
         if (item.url) URL.revokeObjectURL(item.url);
       }
@@ -881,6 +920,7 @@ export default function App() {
   }, [
     currentSelectionPayload,
     generatePrompt,
+    imageProvider,
     referenceItems,
     showToast,
   ]);
@@ -911,20 +951,28 @@ export default function App() {
         };
         const { request } = await submitAgentRequest({
           type: "annotate_edit",
+          provider: imageProvider,
           prompt: prepared.fullPrompt,
           selection,
           screenshotRelativePath: prepared.screenshotRelativePath,
           anchorShapeId: imageShapeId,
+          targetWidth: ed.getShape(imageShapeId)?.props.w,
+          targetHeight: ed.getShape(imageShapeId)?.props.h,
           referencePaths: prepared.referencePaths || [],
           elementRefs: prepared.elementRefs || [],
         });
         setLastRequestId(request.id);
         const refCount = prepared.elementRefs?.length || 0;
+        const snapshot = getSnapshot(ed.store);
+        await saveSnapshot(snapshot.document, snapshot.session);
         await dispatchAgentRequest(request.id);
+        if (imageProvider === "qwen") setLocalRequestIds(ids => [...ids, request.id]);
+        const providerName = imageProvider === "qwen" ? "本地 Qwen" : "Codex";
         showToast(
-          `已派发到 Codex（标注 ${prepared.annotationCount} · 参考图 ${refCount}）`,
+          `已提交到${providerName}（标注 ${prepared.annotationCount} · 参考图 ${refCount}）`,
         );
-        setStatus(`Codex 任务 ${request.id.slice(0, 8)}… 已派发`);
+        const message = `${providerName}任务 ${request.id.slice(0, 8)}… 已提交`;
+        setStatus(message); setRequestMessage(message);
       } catch (error) {
         console.error("[DrawPaint] annotation edit:", error);
         showToast(`失败: ${error.message || String(error)}`);
@@ -933,7 +981,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [showToast],
+    [showToast, imageProvider],
   );
 
   useEffect(() => {
@@ -979,7 +1027,12 @@ export default function App() {
   return (
     <div className="dp-shell">
       <header className="dp-topbar">
-        <div className="dp-brand">DrawPaint</div>
+        <div className="dp-brand dp-model-brand">DrawPaint</div>
+        <ImageProvider value={imageProvider} onChange={setImageProvider} disabled={busy} compact />
+        {localRequestIds.length > 0 && <button disabled={busy} onClick={async () => {
+          try { await cancelImageRequest(localRequestIds.at(-1)); showToast("已取消本地任务回填"); }
+          catch (error) { showToast(error.message); }
+        }}>取消本地任务</button>}
         <button
           type="button"
           className="primary"
@@ -1069,6 +1122,7 @@ export default function App() {
               busy={busy}
               onGenerate={onGenerate}
               lastRequestId={lastRequestId}
+              requestMessage={requestMessage}
               holderInfo={holderInfo}
               referenceItems={referenceItems}
               setReferenceItems={setReferenceItems}

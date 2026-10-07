@@ -5,6 +5,7 @@ import { Worker } from "node:worker_threads";
 import sharp from "sharp";
 import { normalizeOptions, validateSlices } from "./segmentation.mjs";
 import { buildAtlasPrompt, generateAtlas, validateProviderConfig } from "./provider.mjs";
+import { qwenImages } from "../qwen-images.mjs";
 import { createAgentConnection } from "./agent-connection.mjs";
 import { buildLayerPrompt, validateLayers, writeLayers } from "./layers.mjs";
 import { preservesSource, sourcePixelLayer } from "./source-pixels.mjs";
@@ -28,14 +29,19 @@ const now = () => new Date().toISOString();
 function read(file, fallback = null) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; } }
 
 export class UiStudioService {
-  constructor(canvasDir, { agentConnection } = {}) {
+  constructor(canvasDir, { agentConnection, qwenClient } = {}) {
     this.root = path.join(canvasDir, "ui-studio");
     this.running = new Map();
     this.refining = new Set();
     this.splitContinuations = new Map();
     this.agentConnection = agentConnection || createAgentConnection(this.root);
+    this.qwenClient = qwenClient || qwenImages;
     fs.mkdirSync(path.join(this.root, "jobs"), { recursive: true });
     for (const job of this.list()) if (activeStatuses.has(job.status)) {
+      if (job.provider === "qwen" && job.status === "generating" && job.qwenPromptId) {
+        queueMicrotask(() => { try { this.launch(job.id, "generate"); } catch (error) { this.save({ ...this.get(job.id), status: "failed", error: error.message }); } });
+        continue;
+      }
       this.save({ ...job, status: "failed", error: "服务已重启，任务未完成。已有原图可以重新切图；生图不会自动重复扣费。" });
     }
     for (const job of this.list()) if (job.status === "agent_dispatching") {
@@ -88,7 +94,7 @@ export class UiStudioService {
   async create(input) {
     if (this.running.size >= 2) throw new Error("已有两个 UI 任务运行，请稍后重试");
     const kind = input.kind === "extract" ? "extract" : "generate";
-    const provider = input.provider === "api" ? "api" : "agent";
+    const provider = ["api", "qwen"].includes(input.provider) ? input.provider : "agent";
     if (kind === "generate" && provider === "agent" && input.dispatch && !(await this.agentConnection.status()).connected) {
       throw new Error("Agent 尚未连接画布，请让当前 Agent 启动本机连接，无需配置生图 API。");
     }
@@ -96,8 +102,12 @@ export class UiStudioService {
     if (String(input.prompt || "").length > 12000) throw new Error("提示词过长");
     if (!Array.isArray(input.references || []) || (input.references || []).length > 4) throw new Error("最多添加 4 张参考图");
     if (kind === "generate" && provider === "api" && !this.config().configured) throw new Error("请先在生图服务设置中连接 UI 生图服务");
+    if (kind === "generate" && provider === "qwen") {
+      const setup = await this.qwenClient.health();
+      if (!setup.ready) throw new Error(setup.error);
+    }
     const size = input.size || "1024x1024";
-    if (!["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152"].includes(size)) throw new Error("Unsupported size");
+    if (!["1024x1024", "1344x768", "1536x1024", "1024x1536", "2048x2048", "2048x1152"].includes(size) || size === "1344x768" && provider !== "qwen") throw new Error("Unsupported size");
     const id = randomUUID();
     const workflow = input.workflow === "mockup" ? "mockup" : "atlas";
     const job = { id, kind, provider, workflow, prompt: String(input.prompt || (workflow === "mockup" ? "Imported interface mockup" : "Imported UI atlas")), size,
@@ -169,8 +179,17 @@ export class UiStudioService {
       let job = this.get(id);
       if (operation === "generate") {
         const refs = job.references.map(file => fs.readFileSync(path.join(this.directory(id), file)));
-        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10 * 60 * 1000)]);
-        const image = await generateAtlas(job, this.config(true), refs, signal);
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout((job.provider === "qwen" ? 45 : 10) * 60 * 1000)]);
+        let image;
+        if (job.provider === "qwen") {
+          if (!job.qwenPromptId) {
+            const [width, height] = job.size.split("x").map(Number);
+            const qwenPromptId = await this.qwenClient.submit({ prompt: buildAtlasPrompt(job), width, height, references: refs, quality: job.quality, id: job.id }, signal);
+            if (controller.signal.aborted) { await this.qwenClient.cancel(qwenPromptId); return; }
+            job = this.save({ ...job, qwenPromptId });
+          }
+          image = await this.qwenClient.wait(job.qwenPromptId, signal);
+        } else image = await generateAtlas(job, this.config(true), refs, signal);
         const source = await this.normalizeImage(image);
         if (controller.signal.aborted) return;
         fs.writeFileSync(path.join(this.directory(id), "source.png"), source);
@@ -197,6 +216,7 @@ export class UiStudioService {
     const token = this.running.get(id);
     token?.controller.abort(); token?.worker?.terminate();
     const job = this.get(id);
+    if (job.provider === "qwen" && job.qwenPromptId && job.status === "generating") this.qwenClient.cancel(job.qwenPromptId).catch(() => {});
     if (agentStatuses.has(job.status) || activeStatuses.has(job.status) || ["queued", "review_masks", "review_repairs"].includes(job.status)) this.save({ ...job, status: "cancelled" });
     return this.get(id);
   }

@@ -31,7 +31,7 @@ export async function extractVideoContinuationFrame({ file, outputRoot, time }) 
       { windowsHide: true, timeout: 30000, encoding: "buffer", maxBuffer: 16 * 1024 * 1024 });
     if (!stdout?.length) throw new Error("该位置没有可用画面，请稍微向前选择一帧。");
     const filename = `continuation_${randomUUID()}.png`;
-    const subfolder = "DrawPaintVideo";
+    const subfolder = "DrawPaintChat";
     const directory = path.join(outputRoot, subfolder);
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(path.join(directory, filename), stdout, { flag: "wx" });

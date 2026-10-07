@@ -2,6 +2,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { qwenImages } from "./qwen-images.mjs";
+import { createQwenCanvas } from "./qwen-canvas.mjs";
 import { createUiStudioHandler } from "./ui-studio/http.mjs";
 import { createAgentConnection } from "./ui-studio/agent-connection.mjs";
 import { handleVideo } from "./video.mjs";
@@ -24,6 +26,7 @@ const PORT = Number(process.env.DRAWPAINT_API_PORT || 43218);
 const API_VERSION = 2;
 const PROJECT_DIR = resolveProjectDir(process.env.DRAWPAINT_PROJECT_DIR);
 const CANVAS_DIR = initCanvasLayout(PROJECT_DIR);
+const qwenCanvas = createQwenCanvas(CANVAS_DIR);
 const handleUiStudio = createUiStudioHandler(CANVAS_DIR);
 const agentConnection = createAgentConnection(path.join(CANVAS_DIR, "ui-studio"));
 
@@ -94,11 +97,24 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         ok: true,
         apiVersion: API_VERSION,
-        capabilities: ["agent-request-dispatch", "local-video-generation", "local-video-editing"],
+        capabilities: ["agent-request-dispatch", "local-qwen-image-generation", "local-video-generation", "local-video-editing"],
         projectDir: PROJECT_DIR,
         canvasDir: CANVAS_DIR,
         canvasUrl: `http://127.0.0.1:${Number(process.env.DRAWPAINT_PORT || 43217)}`,
       });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/qwen/health") {
+      return sendJson(res, 200, await qwenImages.health());
+    }
+
+    const imageRequestMatch = /^\/api\/agent-request\/([a-f0-9-]{36})(\/cancel)?$/.exec(url.pathname);
+    if (imageRequestMatch && req.method === "GET" && !imageRequestMatch[2]) {
+      const request = readJson(agentRequestPath(CANVAS_DIR, imageRequestMatch[1]));
+      return sendJson(res, request ? 200 : 404, request ? { request } : { error: "生图任务不存在" });
+    }
+    if (imageRequestMatch && req.method === "POST" && imageRequestMatch[2]) {
+      return sendJson(res, 200, await qwenCanvas.cancel(imageRequestMatch[1]));
     }
 
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
@@ -171,6 +187,8 @@ const server = http.createServer(async (req, res) => {
         schema: "drawpaint.agent-request.v1",
         type: body.type || "generate",
         prompt: body.prompt || "",
+        provider: body.provider === "qwen" ? "qwen" : "agent",
+        generationPrompt: body.generationPrompt || null,
         selection: body.selection || null,
         screenshotRelativePath,
         screenshotAbsolutePath,
@@ -206,6 +224,9 @@ const server = http.createServer(async (req, res) => {
         (pending?.id === body.requestId ? pending : null);
       if (!request || request.id !== body.requestId) throw new Error("待办请求不存在或已变化");
       if (!fs.existsSync(requestFile)) writeJson(requestFile, request);
+      if (request.provider === "qwen") {
+        return sendJson(res, 200, { ok: true, ...await qwenCanvas.dispatch(request) });
+      }
       const dispatched = await agentConnection.dispatchCanvas(request.id);
       const next = { ...request, status: "dispatched", dispatch: dispatched };
       writeJson(requestFile, next);
